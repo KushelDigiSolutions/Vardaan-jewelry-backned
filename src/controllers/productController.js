@@ -216,7 +216,8 @@ export const updateProduct = async (req, res, next) => {
     // Add new files to images array if uploaded
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
-        product.images.push(`/uploads/${file.filename}`);
+        // Cloudinary URL from uploadToCloudinary middleware
+        product.images.push(file.path);
       });
     } else if (req.body.images) {
       product.images = Array.isArray(req.body.images) ? req.body.images : [req.body.images];

@@ -71,7 +71,7 @@ const uploadToCloudinary = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
 
-export { upload, cloudinary };
-export { upload, uploadToCloudinary };
+export { upload, uploadToCloudinary, cloudinary };
 export default upload;

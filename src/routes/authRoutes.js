@@ -9,12 +9,9 @@ import {
   getUserProfile,
   updateUserProfile,
   toggleWishlist,
-  
-  // Phase 2 additions
   verifyEmail,
   resendVerificationOTP,
   loginMobile,
-  import { uploadToCloudinary } from '../middleware/uploadMiddleware.js';
   verifyMobileOTP,
   changePassword,
   uploadAvatar,
@@ -30,7 +27,7 @@ import {
   removeFromWishlist
 } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
-import upload from '../middleware/uploadMiddleware.js';
+import upload, { uploadToCloudinary } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -42,7 +39,7 @@ router.post('/otp-verify', verifyOTP);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
-  router.put('/avatar', protect, upload.array('avatar', 1), uploadToCloudinary, uploadAvatar);
+// Extended authentication checks
 router.post('/verify-email', verifyEmail);
 router.post('/resend-verification-otp', resendVerificationOTP);
 router.post('/login-mobile', loginMobile);
@@ -57,7 +54,7 @@ router.put('/change-password', protect, changePassword);
 router.delete('/delete-account', protect, deleteAccount);
 
 // Avatar management
-router.put('/avatar', protect, upload.array('avatar', 1), uploadAvatar);
+router.put('/avatar', protect, upload.array('avatar', 1), uploadToCloudinary, uploadAvatar);
 router.delete('/avatar', protect, removeAvatar);
 
 // Address Directory CRUD routes
