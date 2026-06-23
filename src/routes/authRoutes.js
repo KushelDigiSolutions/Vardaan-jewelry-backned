@@ -14,6 +14,7 @@ import {
   verifyEmail,
   resendVerificationOTP,
   loginMobile,
+  import { uploadToCloudinary } from '../middleware/uploadMiddleware.js';
   verifyMobileOTP,
   changePassword,
   uploadAvatar,
@@ -41,7 +42,7 @@ router.post('/otp-verify', verifyOTP);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
-// Extended authentication checks
+  router.put('/avatar', protect, upload.array('avatar', 1), uploadToCloudinary, uploadAvatar);
 router.post('/verify-email', verifyEmail);
 router.post('/resend-verification-otp', resendVerificationOTP);
 router.post('/login-mobile', loginMobile);

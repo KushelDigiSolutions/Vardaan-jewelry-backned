@@ -17,6 +17,7 @@ import {
 } from '../controllers/productController.js';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import upload from '../middleware/uploadMiddleware.js';
+import { uploadToCloudinary } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -34,11 +35,11 @@ router.get('/slug/:slug', getProductBySlug);
 // Generic CRUD
 router.route('/')
   .get(getProducts)
-  .post(protect, adminOnly, upload.array('images', 5), createProduct);
+  .post(protect, adminOnly, upload.array('images', 5), uploadToCloudinary, createProduct);
 
 router.route('/:id')
   .get(getProductById)
-  .put(protect, adminOnly, upload.array('images', 5), updateProduct)
+  .put(protect, adminOnly, upload.array('images', 5), uploadToCloudinary, updateProduct)
   .delete(protect, adminOnly, deleteProduct);
 
 // Review submission
