@@ -108,11 +108,12 @@ export const createProduct = async (req, res, next) => {
       return res.status(400).json({ success: false, message: `Product with SKU ${sku} already exists` });
     }
 
-    // Process image paths from uploaded files if present
+    // Process image URLs from Cloudinary uploads if present
     const images = [];
     if (req.files) {
       req.files.forEach(file => {
-        images.push(`/uploads/${file.filename}`);
+        // Cloudinary stores the URL in file.path
+        images.push(file.path);
       });
     } else if (req.body.images) {
       // Allow passing URLs directly (useful for seeds / mock data)

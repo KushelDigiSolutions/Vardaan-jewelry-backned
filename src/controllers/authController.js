@@ -432,7 +432,7 @@ export const uploadAvatar = async (req, res, next) => {
     }
 
     const user = await User.findById(req.user._id);
-    user.avatar = `/uploads/${req.files[0].filename}`;
+    user.avatar = req.files[0].path; // Cloudinary URL
     await user.save();
 
     res.status(200).json({ success: true, message: 'Avatar image uploaded successfully', avatar: user.avatar });
