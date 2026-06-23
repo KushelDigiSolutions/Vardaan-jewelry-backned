@@ -76,21 +76,37 @@ app.get("*", (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const DEFAULT_PORT = Number(process.env.PORT) || 5000;
 
-const startServer = async () => {
+const startServer = async (port = DEFAULT_PORT, attempts = 0) => {
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
+    const server = app.listen(port, () => {
       console.log(
-        `🚀 Server running in ${
-          process.env.NODE_ENV || "development"
-        } mode on port ${PORT}`
+        `🚀 Server running in ${process.env.NODE_ENV || "development"} mode on port ${port}`
       );
     });
+
+    server.on('error', (err) => {
+      if (err && err.code === 'EADDRINUSE') {
+        console.warn(`Port ${port} in use.`);
+        if (process.env.NODE_ENV !== 'production' && attempts < 5) {
+          const nextPort = port + 1;
+          console.log(`Attempting to start on port ${nextPort} instead...`);
+          // try next port
+          startServer(nextPort, attempts + 1);
+        } else {
+          console.error('Unable to bind to a port. Exiting.');
+          process.exit(1);
+        }
+      } else {
+        console.error('Server error:', err);
+        process.exit(1);
+      }
+    });
   } catch (error) {
-    console.error("Failed to start server:", error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 };
