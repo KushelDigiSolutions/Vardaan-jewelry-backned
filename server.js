@@ -116,8 +116,8 @@ const startServer = async (port = DEFAULT_PORT, attempts = 0) => {
   }
 };
 
-if (!process.env.VERCEL) {
-  startServer();
-}
 
-export default app;
+  startServer();
+
+
+
