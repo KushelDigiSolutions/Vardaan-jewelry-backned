@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import dns from "node:dns";
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
 import morgan from "morgan";
 import path from "path";
@@ -25,7 +25,7 @@ import couponRoutes from "./src/routes/couponRoutes.js";
 import returnRoutes from "./src/routes/returnRoutes.js";
 import contactRoutes from "./src/routes/contactRoutes.js";
 
-dotenv.config();
+// dotenv.config() is not needed here as 'dotenv/config' is loaded at the top to resolve import hoisting issues
 
 const app = express();
 
