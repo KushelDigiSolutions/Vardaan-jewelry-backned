@@ -39,12 +39,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 if (process.env.NODE_ENV !== "production") {
-  console.log(process.env.NODE_ENV);
   app.use(morgan("dev"));
 }
-
-// Uploads
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // React Build (public folder)
 app.use(express.static(path.join(__dirname, "public")));
@@ -63,9 +59,9 @@ app.use("/api/coupons", couponRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/contact", contactRoutes);
 
-// API Health Check
+// Health Check
 app.get("/api", (req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     message: "Vardaan E-commerce Backend API Running",
   });
@@ -88,9 +84,9 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(
-        `Server running in ${
+        `🚀 Server running in ${
           process.env.NODE_ENV || "development"
-        } mode on http://localhost:${PORT}`,
+        } mode on port ${PORT}`
       );
     });
   } catch (error) {
