@@ -31,8 +31,7 @@ import contactRoutes from "./src/routes/contactRoutes.js";
 
 const app = express();
 
-// Connect Database
-connectDB();
+
 
 // Paths
 const __filename = fileURLToPath(import.meta.url);
@@ -85,9 +84,12 @@ const DEFAULT_PORT = Number(process.env.PORT) || 5000;
 
 const startServer = async (port = DEFAULT_PORT, attempts = 0) => {
   try {
+    await connectDB().then(() => {
+      console.log("MongoDB Connected");
+    });
     const server = app.listen(port, () => {
       console.log(
-        `🚀 Server running in ${process.env.NODE_ENV || "development"} mode on port ${port}`
+        `🚀 Server running in ${process.env.NODE_ENV || "development"} mode on port http://localhost:${port}`
       );
     });
 
