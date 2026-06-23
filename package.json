@@ -1,0 +1,31 @@
+{
+  "name": "ecom-backend",
+  "version": "1.0.0",
+  "description": "E-commerce Backend API with Node, Express, and MongoDB",
+  "main": "server.js",
+  "type": "module",
+"scripts": {
+    "start": "node server.js",
+    "backend": "nodemon server.js",
+    "frontend": "cd src/admin_dashboard && npm install && npm run build -- --watch",
+    "build": "cd src/admin_dashboard && npm install && npm run build",
+    "dev": "concurrently \"npm run frontend\" \"npm run backend\"",
+    "seed": "node utils/seedData.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ecom-suite": "file:..",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.2.1",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.11"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "nodemon": "^3.1.0"
+  }
+}
