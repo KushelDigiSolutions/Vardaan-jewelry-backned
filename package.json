@@ -12,6 +12,9 @@
     "dev": "concurrently \"npm run frontend\" \"npm run backend\"",
     "seed": "node utils/seedData.js"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.0",
