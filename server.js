@@ -6,7 +6,9 @@ import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
 
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
+if (!process.env.VERCEL) {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+}
 
 import connectDB from "./src/config/db.js";
 import { notFound, errorHandler } from "./src/middleware/errorMiddleware.js";
