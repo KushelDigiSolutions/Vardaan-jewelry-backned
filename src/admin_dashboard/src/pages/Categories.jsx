@@ -11,6 +11,8 @@ const Categories = ({ token }) => {
   const [parentCategory, setParentCategory] = useState('');
   const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [image, setImage] = useState('');
+  const [imageUploading, setImageUploading] = useState(false);
 
   const fetchCategories = async () => {
     setLoading(true);
@@ -37,6 +39,7 @@ const Categories = ({ token }) => {
     setParentCategory(cat.parentCategory?._id || '');
     setDescription(cat.description || '');
     setIsActive(cat.isActive);
+    setImage(cat.image || '');
   };
 
   const handleResetForm = () => {
@@ -45,6 +48,36 @@ const Categories = ({ token }) => {
     setParentCategory('');
     setDescription('');
     setIsActive(true);
+    setImage('');
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImageUploading(true);
+    const uploadData = new FormData();
+    uploadData.append('image', file);
+
+    try {
+      const res = await fetch('/api/categories/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadData
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setImage(data.url);
+      } else {
+        alert(data.message || 'Upload failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error uploading file');
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -57,7 +90,8 @@ const Categories = ({ token }) => {
         name,
         parentCategory: parentCategory || null,
         description,
-        isActive
+        isActive,
+        image
       };
 
       const res = await fetch(url, {
@@ -142,9 +176,22 @@ const Categories = ({ token }) => {
                 categories.map(c => (
                   <tr key={c._id}>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: '600' }}>{c.name}</span>
-                        {c.description && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{c.description}</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {c.image ? (
+                          <img
+                            src={c.image}
+                            alt={c.name}
+                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                          />
+                        ) : (
+                          <div style={{ width: '40px', height: '40px', borderRadius: '4px', backgroundColor: 'var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'var(--text-muted)' }}>
+                            No Img
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: '600' }}>{c.name}</span>
+                          {c.description && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{c.description}</span>}
+                        </div>
                       </div>
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{c.slug}</td>
@@ -236,6 +283,47 @@ const Categories = ({ token }) => {
               <option value="true">Active Listing</option>
               <option value="false">Hidden / Inactive</option>
             </select>
+          </div>
+
+          <div className="form-group" style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+            <label style={{ fontWeight: 'bold' }}>Category Image Banner</label>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 10px 0' }}>
+              Choose a representative photo for this category (highly recommended for homepage display).
+            </p>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+                id="category-image-upload-input"
+              />
+              <label
+                htmlFor="category-image-upload-input"
+                className="btn btn-secondary"
+                style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                {imageUploading ? 'Uploading...' : 'Choose Category Image'}
+              </label>
+
+              {image && (
+                <div style={{ position: 'relative', width: '80px', height: '80px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <img
+                    src={image}
+                    alt="Category Preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setImage('')}
+                    style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(220, 38, 38, 0.8)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>

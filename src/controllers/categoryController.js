@@ -15,12 +15,20 @@ export const createCategory = async (req, res, next) => {
   try {
     const { name, parentCategory, isActive, image, description } = req.body;
 
+    // Process image URL from Cloudinary upload if present
+    let imageUrl = image || '';
+    if (req.files && req.files.length > 0) {
+      imageUrl = req.files[0].path;
+    } else if (req.file) {
+      imageUrl = req.file.path;
+    }
+
     const parent = parentCategory || null;
     const category = await Category.create({
       name,
       parentCategory: parent,
       isActive: isActive !== undefined ? isActive : true,
-      image: image || '',
+      image: imageUrl,
       description: description || ''
     });
 
@@ -36,6 +44,14 @@ export const updateCategory = async (req, res, next) => {
     const { id } = req.params;
     const { name, parentCategory, isActive, image, description } = req.body;
 
+    // Process image URL from Cloudinary upload if present
+    let imageUrl = image;
+    if (req.files && req.files.length > 0) {
+      imageUrl = req.files[0].path;
+    } else if (req.file) {
+      imageUrl = req.file.path;
+    }
+
     const category = await Category.findById(id);
     if (!category) {
       return res.status(404).json({ success: false, message: 'Category not found' });
@@ -47,7 +63,7 @@ export const updateCategory = async (req, res, next) => {
     }
     if (parentCategory !== undefined) category.parentCategory = parentCategory || null;
     if (isActive !== undefined) category.isActive = isActive;
-    if (image !== undefined) category.image = image;
+    if (imageUrl !== undefined) category.image = imageUrl;
     if (description !== undefined) category.description = description;
 
     await category.save();
