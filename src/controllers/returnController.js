@@ -3,6 +3,8 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import InventoryLog from '../models/InventoryLog.js';
 import Notification from '../models/Notification.js';
+import { sendEmail } from '../utils/email.js';
+import { getReturnRequestedEmailTemplate, getReturnStatusUpdateEmailTemplate } from '../utils/emailTemplates.js';
 
 // Request return (Customer)
 export const requestReturn = async (req, res, next) => {
@@ -66,6 +68,19 @@ export const requestReturn = async (req, res, next) => {
       message: `Return requested for Order #${orderId} by customer ${req.user.name}`
     });
 
+    // Send email to customer
+    try {
+      const emailHtml = getReturnRequestedEmailTemplate(order, returnRequest, req.user.name);
+      await sendEmail({
+        to: req.user.email,
+        subject: `Vardaan - Return Request Received for Order #${order._id}`,
+        html: emailHtml,
+        text: `Hello ${req.user.name}, we have received your return request for Order #${order._id}. Status: PENDING.`
+      });
+    } catch (emailErr) {
+      console.error('Error sending return confirmation email:', emailErr);
+    }
+
     res.status(201).json({ success: true, message: 'Return request submitted successfully', data: returnRequest });
   } catch (error) {
     next(error);
@@ -98,7 +113,7 @@ export const updateReturnStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status, adminNotes } = req.body; // approved, rejected, refunded
 
-    const returnReq = await ReturnRequest.findById(id).populate('user', 'name email');
+    const returnReq = await ReturnRequest.findById(id).populate('user', 'name email').populate('order');
     if (!returnReq) {
       return res.status(404).json({ success: false, message: 'Return request not found' });
     }
@@ -151,6 +166,19 @@ export const updateReturnStatus = async (req, res, next) => {
         title: 'Return Request Rejected',
         message: `Your return request for Order #${returnReq.order} has been rejected. Details: ${adminNotes || 'Contact support.'}`
       });
+    }
+
+    // Send email to customer on status change
+    try {
+      const emailHtml = getReturnStatusUpdateEmailTemplate(returnReq.order, returnReq, returnReq.user.name);
+      await sendEmail({
+        to: returnReq.user.email,
+        subject: `Vardaan - Return Request Status Update for Order #${returnReq.order._id}`,
+        html: emailHtml,
+        text: `Hello ${returnReq.user.name}, the status of your return request for Order #${returnReq.order._id} has been updated to "${status}".`
+      });
+    } catch (emailErr) {
+      console.error('Error sending return status update email:', emailErr);
     }
 
     res.status(200).json({ success: true, message: `Return request status updated to ${status}`, data: returnReq });
@@ -218,6 +246,19 @@ export const updateReturn = async (req, res, next) => {
     returnRequest.refundDetails = refundDetails;
 
     await returnRequest.save();
+
+    // Send email to customer on edit/update
+    try {
+      const emailHtml = getReturnRequestedEmailTemplate(order, returnRequest, req.user.name);
+      await sendEmail({
+        to: req.user.email,
+        subject: `Vardaan - Return Request Updated for Order #${order._id}`,
+        html: emailHtml,
+        text: `Hello ${req.user.name}, your return request for Order #${order._id} has been updated.`
+      });
+    } catch (emailErr) {
+      console.error('Error sending return update email:', emailErr);
+    }
 
     res.status(200).json({ success: true, message: 'Return request updated successfully', data: returnRequest });
   } catch (error) {

@@ -353,3 +353,163 @@ export const getOrderPlacedEmailTemplate = (order) => {
     </html>
   `;
 };
+
+export const getReturnRequestedEmailTemplate = (order, returnRequest, name) => {
+  const itemsHtml = returnRequest.items.map(item => `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Vardaan Return Request Received</title>
+      <style>
+        body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
+        .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
+        .header { background: #07512E; padding: 40px 30px; text-align: center; color: #ffffff; border-bottom: 3px solid #C4A46C; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: normal; letter-spacing: 2px; font-family: 'Playfair Display', serif; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; font-style: italic; letter-spacing: 1px; }
+        .content { padding: 40px 35px; background: #ffffff; }
+        .greeting { font-size: 18px; color: #303030; margin-top: 0; font-weight: normal; letter-spacing: 0.5px; }
+        .lead-text { color: #555555; font-size: 15px; line-height: 1.7; margin-bottom: 25px; }
+        
+        .info-card { background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 20px; margin: 20px 0; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        
+        .items-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+        .items-table th { background: #F8F5EE; padding: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #8C7547; text-align: left; border-bottom: 1px solid #E5DCC5; }
+        .items-table td { padding: 12px; border-bottom: 1px solid #F0ECE3; font-size: 14px; }
+
+        .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
+        .footer p { margin: 4px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>VARDAAN</h1>
+          <p>Return Request Confirmation</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear ${name || 'Customer'},</p>
+          <p class="lead-text">We have received your return request for Order <b>#${order._id}</b>. Our concierge team is currently reviewing your ticket. Here are the details of the return request:</p>
+          
+          <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
+            <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Return Status:</strong></td><td style="text-align: right; color: #b7791f; font-weight: bold; text-transform: uppercase;">${returnRequest.status}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Refund Method:</strong></td><td style="text-align: right; color: #303030; text-transform: uppercase;">${returnRequest.refundMethod}</td></tr>
+          </table>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Returning Jewelry Item</th>
+                <th style="text-align: center; width: 60px;">Qty</th>
+                <th style="text-align: right; width: 100px;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <p class="lead-text" style="margin-top: 30px;">Our team typically reviews requests within 1-2 business days. You will receive an email update once the return is approved or processed.</p>
+          <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
+        </div>
+        <div class="footer">
+          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+export const getReturnStatusUpdateEmailTemplate = (order, returnRequest, name) => {
+  const itemsHtml = returnRequest.items.map(item => `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
+    </tr>
+  `).join('');
+
+  const statusColor = returnRequest.status === 'approved' || returnRequest.status === 'refunded' ? '#07512E' : returnRequest.status === 'rejected' ? '#c53030' : '#b7791f';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Vardaan Return Request Update</title>
+      <style>
+        body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
+        .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
+        .header { background: #07512E; padding: 40px 30px; text-align: center; color: #ffffff; border-bottom: 3px solid #C4A46C; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: normal; letter-spacing: 2px; font-family: 'Playfair Display', serif; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; font-style: italic; letter-spacing: 1px; }
+        .content { padding: 40px 35px; background: #ffffff; }
+        .greeting { font-size: 18px; color: #303030; margin-top: 0; font-weight: normal; letter-spacing: 0.5px; }
+        .lead-text { color: #555555; font-size: 15px; line-height: 1.7; margin-bottom: 25px; }
+        
+        .status-box { background: #F8F5EE; border: 1px dashed ${statusColor}; border-radius: 6px; padding: 20px; text-align: center; margin: 20px 0; }
+        .status-title { font-size: 18px; font-weight: bold; color: ${statusColor}; text-transform: uppercase; margin-bottom: 5px; }
+        .status-desc { font-size: 14px; color: #555555; margin: 0; }
+
+        .items-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+        .items-table th { background: #F8F5EE; padding: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #8C7547; text-align: left; border-bottom: 1px solid #E5DCC5; }
+        .items-table td { padding: 12px; border-bottom: 1px solid #F0ECE3; font-size: 14px; }
+
+        .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
+        .footer p { margin: 4px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>VARDAAN</h1>
+          <p>Return Status Update</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear ${name || 'Customer'},</p>
+          <p class="lead-text">There has been an update regarding your return request for Order <b>#${order._id}</b>.</p>
+          
+          <div class="status-box">
+            <div class="status-title">Return Status: ${returnRequest.status}</div>
+            <p class="status-desc">
+              ${returnRequest.adminNotes ? `Admin Notes: "${returnRequest.adminNotes}"` : `Your return request status has been updated to "${returnRequest.status}".`}
+            </p>
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Jewelry Item</th>
+                <th style="text-align: center; width: 60px;">Qty</th>
+                <th style="text-align: right; width: 100px;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <p class="lead-text" style="margin-top: 30px;">For any questions, feel free to contact our concierge support desk.</p>
+          <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
+        </div>
+        <div class="footer">
+          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
