@@ -158,3 +158,69 @@ export const updateReturnStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+// Update return request (Customer)
+export const updateReturn = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { items, refundMethod, refundDetails } = req.body;
+
+    const returnRequest = await ReturnRequest.findById(id);
+    if (!returnRequest) {
+      return res.status(404).json({ success: false, message: 'Return request not found' });
+    }
+
+    // Auth check
+    if (returnRequest.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this return request' });
+    }
+
+    // Status check - only pending returns can be edited
+    if (returnRequest.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Only pending return requests can be modified' });
+    }
+
+    const order = await Order.findById(returnRequest.order);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Verify returning items belong to order and quantities are valid
+    const returnItems = [];
+    for (const item of items) {
+      const orderItem = order.items.find(o => o.product.toString() === item.productId);
+      if (!orderItem) {
+        return res.status(400).json({ success: false, message: `Product ${item.name} not found in this order` });
+      }
+      if (item.quantity > orderItem.quantity) {
+        return res.status(400).json({ success: false, message: `Returned quantity exceeds ordered quantity for ${item.name}` });
+      }
+
+      returnItems.push({
+        product: item.productId,
+        name: orderItem.name,
+        quantity: Number(item.quantity),
+        price: orderItem.price,
+        reason: item.reason || 'Product wrong size/defective'
+      });
+    }
+
+    // Refund details validations
+    if (refundMethod === 'upi' && !refundDetails.upiId) {
+      return res.status(400).json({ success: false, message: 'UPI ID is required for UPI refunds' });
+    }
+    if (refundMethod === 'bank' && (!refundDetails.accountNo || !refundDetails.ifsc || !refundDetails.bankName || !refundDetails.holderName)) {
+      return res.status(400).json({ success: false, message: 'Complete Bank Details are required for Bank refunds' });
+    }
+
+    returnRequest.items = returnItems;
+    returnRequest.refundMethod = refundMethod;
+    returnRequest.refundDetails = refundDetails;
+
+    await returnRequest.save();
+
+    res.status(200).json({ success: true, message: 'Return request updated successfully', data: returnRequest });
+  } catch (error) {
+    next(error);
+  }
+};

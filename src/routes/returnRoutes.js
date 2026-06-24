@@ -2,7 +2,8 @@ import express from 'express';
 import {
   requestReturn,
   getReturns,
-  updateReturnStatus
+  updateReturnStatus,
+  updateReturn
 } from '../controllers/returnController.js';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 
@@ -14,6 +15,8 @@ router.route('/')
   .get(getReturns);
 
 router.post('/request', requestReturn);
+
+router.put('/:id', updateReturn);
 
 router.put('/:id/status', adminOnly, updateReturnStatus);
 
