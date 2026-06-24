@@ -12,6 +12,7 @@ import Customers from './pages/Customers.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Coupons from './pages/Coupons.jsx';
 import Returns from './pages/Returns.jsx';
+import Contacts from './pages/Contacts.jsx';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('admin_token') || null);
@@ -58,6 +59,8 @@ function App() {
         return <Coupons token={token} />;
       case 'returns':
         return <Returns token={token} />;
+      case 'contacts':
+        return <Contacts token={token} />;
       default:
         return <DashboardHome token={token} onViewChange={setCurrentTab} />;
     }

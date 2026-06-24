@@ -12,24 +12,29 @@ cloudinary.config({
 // Multer Memory Storage - stores files in memory
 const storage = multer.memoryStorage();
 
-// File filter (Only allow image types)
+// File filter (Only allow image and video types)
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
+  if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed!'), false);
+    cb(new Error('Only image and video files are allowed!'), false);
   }
 };
 
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 50 * 1024 * 1024 } // Increase limit to 50MB for video uploads
 });
 
 // Custom middleware to upload to Cloudinary
 const uploadToCloudinary = async (req, res, next) => {
   try {
+    // Standardize req.file to req.files if upload.single was used
+    if (req.file && (!req.files || req.files.length === 0)) {
+      req.files = [req.file];
+    }
+
     if (!req.files || req.files.length === 0) {
       return next();
     }
@@ -37,15 +42,21 @@ const uploadToCloudinary = async (req, res, next) => {
     // Upload each file to Cloudinary
     const uploadPromises = req.files.map((file) => {
       return new Promise((resolve, reject) => {
+        const isVideo = file.mimetype.startsWith('video/');
+        const uploadOptions = {
+          folder: 'ecom-uploads',
+          resource_type: isVideo ? 'video' : 'image',
+        };
+
+        if (!isVideo) {
+          uploadOptions.allowed_formats = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+          uploadOptions.transformation = [
+            { width: 800, height: 800, crop: 'limit', quality: 'auto' }
+          ];
+        }
+
         const stream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'ecom-uploads',
-            resource_type: 'auto',
-            allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-            transformation: [
-              { width: 800, height: 800, crop: 'limit', quality: 'auto' }
-            ]
-          },
+          uploadOptions,
           (error, result) => {
             if (error) reject(error);
             else resolve(result);

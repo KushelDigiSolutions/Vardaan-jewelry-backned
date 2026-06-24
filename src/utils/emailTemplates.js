@@ -513,3 +513,56 @@ export const getReturnStatusUpdateEmailTemplate = (order, returnRequest, name) =
     </html>
   `;
 };
+
+export const getContactThankYouEmailTemplate = (name, subject, message) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Thank You for Contacting Vardaan</title>
+      <style>
+        body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
+        .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
+        .header { background: #07512E; padding: 40px 30px; text-align: center; color: #ffffff; border-bottom: 3px solid #C4A46C; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: normal; letter-spacing: 2px; font-family: 'Playfair Display', serif; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; font-style: italic; letter-spacing: 1px; }
+        .content { padding: 40px 35px; background: #ffffff; }
+        .greeting { font-size: 18px; color: #303030; margin-top: 0; font-weight: normal; letter-spacing: 0.5px; }
+        .lead-text { color: #555555; font-size: 15px; line-height: 1.7; margin-bottom: 25px; }
+        .inquiry-summary { background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 20px; margin: 25px 0; }
+        .inquiry-title { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #8C7547; margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #E5DCC5; padding-bottom: 5px; }
+        .inquiry-item { font-size: 14px; color: #555555; margin-bottom: 8px; line-height: 1.5; }
+        .inquiry-item strong { color: #303030; }
+        .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
+        .footer p { margin: 4px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>VARDAAN</h1>
+          <p>More than a Jewel, a Blessing</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear ${name},</p>
+          <p class="lead-text">Thank you for reaching out to the Vardaan Concierge team. We have received your inquiry and our team is already reviewing it. A private consultant has been assigned to your request and will reply within 12 hours.</p>
+          
+          <div class="inquiry-summary">
+            <div class="inquiry-title">Inquiry Details Received</div>
+            <div class="inquiry-item"><strong>Subject:</strong> ${subject}</div>
+            <div class="inquiry-item"><strong>Message Summary:</strong><br/>${message}</div>
+          </div>
+
+          <p class="lead-text">We look forward to assisting you in finding or customizing your perfect jewelry creation.</p>
+          <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Concierge Team</b></p>
+        </div>
+        <div class="footer">
+          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};

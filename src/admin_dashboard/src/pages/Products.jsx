@@ -32,6 +32,8 @@ const Products = ({ token }) => {
     category: '',
     isActive: true,
     images: '', // Comma separated URLs
+    mainImage: '',
+    wearableMedia: [], // Array of {url, mediaType}
     attributes: [], // Array of {key, value}
     variants: [] // Array of variants
   });
@@ -121,6 +123,8 @@ const Products = ({ token }) => {
       category: categories[0]?._id || '',
       isActive: true,
       images: '',
+      mainImage: '',
+      wearableMedia: [],
       attributes: [],
       variants: []
     });
@@ -138,7 +142,9 @@ const Products = ({ token }) => {
       inventory: product.inventory,
       category: product.category?._id || '',
       isActive: product.isActive,
-      images: product.images.join(', '),
+      images: product.images ? product.images.join(', ') : '',
+      mainImage: product.mainImage || '',
+      wearableMedia: product.wearableMedia || [],
       attributes: product.attributes || [],
       variants: product.variants || []
     });
@@ -202,6 +208,91 @@ const Products = ({ token }) => {
     });
   };
 
+  const [mainImageUploading, setMainImageUploading] = useState(false);
+  const [wearableMediaUploading, setWearableMediaUploading] = useState(false);
+
+  const handleMainImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setMainImageUploading(true);
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+
+    try {
+      const res = await fetch('/api/products/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadData
+      });
+      const data = await res.json();
+      if (data.success && data.files && data.files.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          mainImage: data.files[0].url
+        }));
+      } else {
+        alert(data.message || 'Upload failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error uploading file');
+    } finally {
+      setMainImageUploading(false);
+    }
+  };
+
+  const handleWearableMediaUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    setWearableMediaUploading(true);
+
+    try {
+      const uploadPromises = files.map(file => {
+        const uploadData = new FormData();
+        uploadData.append('file', file);
+        return fetch('/api/products/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: uploadData
+        }).then(res => res.json());
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const newMedia = [];
+      results.forEach(data => {
+        if (data.success && data.files) {
+          data.files.forEach(f => {
+            newMedia.push({
+              url: f.url,
+              mediaType: f.mediaType
+            });
+          });
+        }
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        wearableMedia: [...(prev.wearableMedia || []), ...newMedia]
+      }));
+    } catch (err) {
+      console.error(err);
+      alert('Error uploading files');
+    } finally {
+      setWearableMediaUploading(false);
+    }
+  };
+
+  const handleRemoveWearableMedia = (idx) => {
+    setFormData(prev => ({
+      ...prev,
+      wearableMedia: (prev.wearableMedia || []).filter((_, i) => i !== idx)
+    }));
+  };
+
   const handleRemoveVariant = (idx) => {
     const updated = (formData.variants || []).filter((_, i) => i !== idx);
     setFormData({ ...formData, variants: updated });
@@ -213,12 +304,17 @@ const Products = ({ token }) => {
       const url = currentProduct ? `/api/products/${currentProduct._id}` : '/api/products';
       const method = currentProduct ? 'PUT' : 'POST';
 
+      let imagesList = formData.images ? formData.images.split(',').map(s => s.trim()).filter(Boolean) : [];
+      if (formData.mainImage && !imagesList.includes(formData.mainImage)) {
+        imagesList.unshift(formData.mainImage);
+      }
+
       const payload = {
         ...formData,
         price: Number(formData.price),
         salePrice: formData.salePrice ? Number(formData.salePrice) : 0,
         inventory: Number(formData.inventory),
-        images: formData.images.split(',').map(s => s.trim()).filter(Boolean)
+        images: imagesList
       };
 
       const res = await fetch(url, {
@@ -399,8 +495,114 @@ const Products = ({ token }) => {
               </div>
             </div>
 
+            {/* Main Product Image Upload Section */}
+            <div className="form-group" style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+              <label style={{ fontWeight: 'bold' }}>Main Product Image</label>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 10px 0' }}>
+                This is the close-up product image displayed as the primary thumbnail.
+              </p>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleMainImageUpload}
+                  style={{ display: 'none' }}
+                  id="main-image-upload-input"
+                />
+                <label
+                  htmlFor="main-image-upload-input"
+                  className="btn btn-secondary"
+                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <PlusCircle size={16} />
+                  {mainImageUploading ? 'Uploading...' : 'Choose Main Image'}
+                </label>
+
+                {formData.mainImage && (
+                  <div style={{ position: 'relative', width: '80px', height: '80px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                    <img
+                      src={formData.mainImage}
+                      alt="Main Product Preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, mainImage: '' })}
+                      style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(220, 38, 38, 0.8)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Wearable Media / Secondary Images & Videos Upload Section */}
+            <div className="form-group" style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+              <label style={{ fontWeight: 'bold' }}>Wearable & Detail Media (Images & Videos)</label>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 10px 0' }}>
+                Upload images or videos showing someone wearing the product, or other details.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={handleWearableMediaUpload}
+                    style={{ display: 'none' }}
+                    id="wearable-media-upload-input"
+                  />
+                  <label
+                    htmlFor="wearable-media-upload-input"
+                    className="btn btn-secondary"
+                    style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <PlusCircle size={16} />
+                    {wearableMediaUploading ? 'Uploading...' : 'Choose Images/Videos'}
+                  </label>
+                </div>
+
+                {formData.wearableMedia && formData.wearableMedia.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                    {formData.wearableMedia.map((media, idx) => (
+                      <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#000' }}>
+                        {media.mediaType === 'video' ? (
+                          <video
+                            src={media.url}
+                            muted
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <img
+                            src={media.url}
+                            alt={`Preview ${idx}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        )}
+                        
+                        <div style={{ position: 'absolute', bottom: '2px', left: '4px', fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '1px 4px', borderRadius: '4px' }}>
+                          {media.mediaType}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveWearableMedia(idx)}
+                          style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(220, 38, 38, 0.8)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="form-group">
-              <label>Media Image URLs (comma separated)</label>
+              <label>Fallback Media Image URLs (comma separated)</label>
               <input
                 type="text"
                 className="form-control"

@@ -10,6 +10,13 @@ const productSchema = new mongoose.Schema({
   inventory: { type: Number, required: true, default: 0, min: 0 },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   images: [{ type: String }],
+  mainImage: { type: String, default: '' },
+  wearableMedia: [
+    {
+      url: { type: String, required: true },
+      mediaType: { type: String, enum: ['image', 'video'], default: 'image' }
+    }
+  ],
   isActive: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
   salesCount: { type: Number, default: 0, min: 0 },

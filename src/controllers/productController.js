@@ -101,7 +101,7 @@ export const getProductBySlug = async (req, res, next) => {
 // Create product (Admin)
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia } = req.body;
 
     const skuExists = await Product.findOne({ sku });
     if (skuExists) {
@@ -124,6 +124,16 @@ export const createProduct = async (req, res, next) => {
       }
     }
 
+    // Ensure mainImage is at the front of images array
+    const resolvedMainImage = mainImage || (images.length > 0 ? images[0] : '');
+    if (resolvedMainImage && !images.includes(resolvedMainImage)) {
+      images.unshift(resolvedMainImage);
+    } else if (resolvedMainImage && images.indexOf(resolvedMainImage) > 0) {
+      const idx = images.indexOf(resolvedMainImage);
+      images.splice(idx, 1);
+      images.unshift(resolvedMainImage);
+    }
+
     let parsedAttributes = [];
     if (attributes) {
       parsedAttributes = typeof attributes === 'string' ? JSON.parse(attributes) : attributes;
@@ -132,6 +142,11 @@ export const createProduct = async (req, res, next) => {
     let parsedVariants = [];
     if (variants) {
       parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
+    }
+
+    let parsedWearableMedia = [];
+    if (wearableMedia) {
+      parsedWearableMedia = typeof wearableMedia === 'string' ? JSON.parse(wearableMedia) : wearableMedia;
     }
 
     const product = await Product.create({
@@ -143,6 +158,8 @@ export const createProduct = async (req, res, next) => {
       inventory: Number(inventory) || 0,
       category,
       images,
+      mainImage: resolvedMainImage,
+      wearableMedia: parsedWearableMedia,
       isActive: isActive !== undefined ? isActive : true,
       attributes: parsedAttributes,
       variants: parsedVariants
@@ -166,7 +183,7 @@ export const createProduct = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia } = req.body;
 
     const product = await Product.findById(id);
     if (!product) {
@@ -221,6 +238,27 @@ export const updateProduct = async (req, res, next) => {
       });
     } else if (req.body.images) {
       product.images = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
+    }
+
+    if (mainImage !== undefined) {
+      product.mainImage = mainImage;
+    }
+
+    if (wearableMedia !== undefined) {
+      product.wearableMedia = typeof wearableMedia === 'string' ? JSON.parse(wearableMedia) : wearableMedia;
+    }
+
+    // Ensure mainImage is at the front of images array
+    const resolvedMainImage = product.mainImage || (product.images.length > 0 ? product.images[0] : '');
+    if (resolvedMainImage) {
+      product.mainImage = resolvedMainImage;
+      if (!product.images.includes(resolvedMainImage)) {
+        product.images.unshift(resolvedMainImage);
+      } else if (product.images.indexOf(resolvedMainImage) > 0) {
+        const idx = product.images.indexOf(resolvedMainImage);
+        product.images.splice(idx, 1);
+        product.images.unshift(resolvedMainImage);
+      }
     }
 
     await product.save();

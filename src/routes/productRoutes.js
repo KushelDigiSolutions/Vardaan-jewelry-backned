@@ -32,6 +32,21 @@ router.get('/category/:categoryId', getProductsByCategory);
 router.get('/details/:id', getProductById);
 router.get('/slug/:slug', getProductBySlug);
 
+// Upload files (Admin)
+router.post('/upload', protect, adminOnly, upload.array('file', 5), uploadToCloudinary, (req, res) => {
+  if (req.files && req.files.length > 0) {
+    res.status(200).json({
+      success: true,
+      files: req.files.map(f => ({
+        url: f.path,
+        mediaType: f.mimetype === 'video' || (typeof f.mimetype === 'string' && f.mimetype.startsWith('video/')) ? 'video' : 'image'
+      }))
+    });
+  } else {
+    res.status(400).json({ success: false, message: 'No files uploaded' });
+  }
+});
+
 // Generic CRUD
 router.route('/')
   .get(getProducts)
