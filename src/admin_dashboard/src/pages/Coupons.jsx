@@ -11,6 +11,7 @@ const Coupons = ({ token }) => {
   const [discountValue, setDiscountValue] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [usageLimit, setUsageLimit] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
   const fetchCoupons = async () => {
@@ -51,7 +52,8 @@ const Coupons = ({ token }) => {
           discountType,
           discountValue: Number(discountValue),
           minOrderAmount: Number(minOrderAmount) || 0,
-          expiryDate
+          expiryDate,
+          usageLimit: usageLimit ? Number(usageLimit) : null
         })
       });
       const data = await res.json();
@@ -62,6 +64,7 @@ const Coupons = ({ token }) => {
         setDiscountValue('');
         setMinOrderAmount('');
         setExpiryDate('');
+        setUsageLimit('');
         fetchCoupons();
       } else {
         alert(data.message);
@@ -113,6 +116,7 @@ const Coupons = ({ token }) => {
                 <th>Discount Rate</th>
                 <th>Minimum Cart</th>
                 <th>Expires Date</th>
+                <th>Usage</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -144,9 +148,23 @@ const Coupons = ({ token }) => {
                     <td>₹{coupon.minOrderAmount.toLocaleString('en-IN')}</td>
                     <td>{new Date(coupon.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     <td>
-                      <span className={`badge badge-${new Date(coupon.expiryDate) > new Date() && coupon.isActive ? 'success' : 'danger'}`}>
-                        {new Date(coupon.expiryDate) > new Date() && coupon.isActive ? 'Valid' : 'Expired'}
+                      {/* Usage: usedCount / usageLimit */}
+                      <span style={{ fontSize: '12px', fontWeight: '600' }}>
+                        {coupon.usedCount ?? 0}
+                        {coupon.usageLimit !== null && coupon.usageLimit !== undefined
+                          ? ` / ${coupon.usageLimit}`
+                          : ' / ∞'
+                        }
                       </span>
+                    </td>
+                    <td>
+                      {(() => {
+                        const expired = new Date(coupon.expiryDate) <= new Date();
+                        const limitReached = coupon.usageLimit !== null && coupon.usageLimit !== undefined && (coupon.usedCount ?? 0) >= coupon.usageLimit;
+                        if (limitReached) return <span className="badge badge-danger">Limit Reached</span>;
+                        if (expired || !coupon.isActive) return <span className="badge badge-danger">Expired</span>;
+                        return <span className="badge badge-success">Valid</span>;
+                      })()}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="btn btn-secondary btn-danger" onClick={() => handleDelete(coupon._id)} style={{ padding: '6px' }} title="Delete Coupon">
@@ -226,6 +244,18 @@ const Coupons = ({ token }) => {
               className="form-control"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Max Usage Limit <span style={{ color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '11px' }}>(leave empty = unlimited)</span></label>
+            <input
+              type="number"
+              min="1"
+              className="form-control"
+              placeholder="e.g. 100"
+              value={usageLimit}
+              onChange={(e) => setUsageLimit(e.target.value)}
             />
           </div>
 

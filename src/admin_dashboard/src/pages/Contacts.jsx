@@ -78,7 +78,7 @@ const Contacts = ({ token }) => {
   });
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
       {/* Search and Filters Toolbar */}
       <div className="toolbar">
         <div className="search-input-wrapper">
@@ -107,17 +107,16 @@ const Contacts = ({ token }) => {
       </div>
 
       {/* Main Table Card */}
-      <div className="card" style={{ padding: '0px' }}>
-        <div className="table-container">
-          <table className="custom-table">
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+        <table className="custom-table" style={{ minWidth: '820px', margin: 0 }}>
             <thead>
               <tr>
-                <th>Customer Details</th>
-                <th>Contact Info</th>
-                <th>Inquiry Subject</th>
-                <th>Date Received</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Customer Details</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Contact Info</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Inquiry Subject</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Date Received</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Status</th>
+                <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -136,36 +135,36 @@ const Contacts = ({ token }) => {
               ) : (
                 filteredMessages.map(m => (
                   <tr key={m._id} style={{ verticalAlign: 'middle' }}>
-                    <td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontWeight: '600' }}>{m.name}</span>
                         {m.phone && <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}><Phone size={12} /> {m.phone}</span>}
                       </div>
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Mail size={14} style={{ color: 'var(--text-dark)' }} />
                         <a href={`mailto:${m.email}`} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '500' }}>{m.email}</a>
                       </span>
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '300px' }}>
-                        <span style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.subject}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>{m.message}</span>
+                    <td style={{ whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{m.subject}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', display: 'block' }}>{m.message}</span>
                       </div>
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
                         <Calendar size={14} />
                         {new Date(m.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </td>
-                    <td>
-                      <span className={`badge badge-${m.isResolved ? 'success' : 'warning'}`}>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <span className={`badge text-gray-900 badge-${m.isResolved ? 'success' : 'primary'}`}>
                         {m.isResolved ? 'Resolved' : 'Pending Review'}
                       </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
+                    </td> 
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'inline-flex', gap: '8px' }}>
                         <button
                           className="btn btn-secondary"
@@ -188,7 +187,6 @@ const Contacts = ({ token }) => {
               )}
             </tbody>
           </table>
-        </div>
       </div>
 
       {/* Message Modal */}

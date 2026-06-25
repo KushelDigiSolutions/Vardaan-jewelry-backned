@@ -78,19 +78,20 @@ const Products = ({ token }) => {
     }
   };
 
+  // Instant live search — fires immediately on every keystroke
+  // Blank / whitespace-only input is ignored
+
   useEffect(() => {
     fetchProducts();
   }, [page, selectedCategory, sortOption]);
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    // Don't search if input is only whitespace
+    if (searchTerm !== '' && searchTerm.trim() === '') return;
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
     setPage(1);
     fetchProducts();
-  };
+  }, [searchTerm]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to remove this product from the catalog?')) return;
@@ -829,7 +830,7 @@ const Products = ({ token }) => {
     <div>
       {/* Search and Filters Toolbar */}
       <div className="toolbar">
-        <form onSubmit={handleSearchSubmit} className="search-input-wrapper">
+        <div className="search-input-wrapper">
           <Search size={18} className="search-icon" />
           <input
             type="text"
@@ -838,7 +839,7 @@ const Products = ({ token }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </form>
+        </div>
 
         <div className="filters-wrapper">
           <select
@@ -921,7 +922,7 @@ const Products = ({ token }) => {
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SKU: {p.sku}</span>
                       </div>
                     </td>
-                    <td><span className="badge badge-secondary">{p.category?.name || 'Unassigned'}</span></td>
+                    <td><span className="badge text-black bg-gray-300">{p.category?.name || 'Unassigned'}</span></td>
                     <td style={{ fontWeight: '500' }}>₹{p.price.toLocaleString('en-IN')}</td>
                     <td style={{ fontWeight: '500', color: p.salePrice > 0 ? '#10b981' : 'var(--text-dark)' }}>
                       {p.salePrice > 0 ? `₹${p.salePrice.toLocaleString('en-IN')}` : '-'}

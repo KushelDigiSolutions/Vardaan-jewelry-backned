@@ -201,7 +201,7 @@ const Categories = ({ token }) => {
                           <FolderMinus size={11} /> {c.parentCategory.name}
                         </span>
                       ) : (
-                        <span className="badge badge-secondary" style={{ fontSize: '10px' }}>Root Category</span>
+                        <span className="badge badge-info text-black" style={{ fontSize: '10px' }}>Root Category</span>
                       )}
                     </td>
                     <td>

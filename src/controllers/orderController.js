@@ -4,6 +4,7 @@ import Product from '../models/Product.js';
 import InventoryLog from '../models/InventoryLog.js';
 import Notification from '../models/Notification.js';
 import Coupon from '../models/Coupon.js';
+import { incrementCouponUsage } from './couponController.js';
 import { sendEmail } from '../utils/email.js';
 import { getInvoiceEmailTemplate, getStatusUpdateEmailTemplate, getOrderPlacedEmailTemplate } from '../utils/emailTemplates.js';
 
@@ -117,6 +118,11 @@ export const checkoutOrder = async (req, res, next) => {
     // Clear user cart
     cart.items = [];
     await cart.save();
+
+    // Increment coupon usage count after successful order creation
+    if (couponCode) {
+      await incrementCouponUsage(couponCode);
+    }
 
     // Send Order Placement Email
     try {

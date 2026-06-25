@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DollarSign, ShoppingBag, AlertTriangle, Users, ArrowUpRight, Clock } from 'lucide-react';
+import { DollarSign, ShoppingBag, AlertTriangle, Users, ArrowUpRight, Clock, IndianRupee } from 'lucide-react';
 
 const DashboardHome = ({ token, onViewChange }) => {
   const [loading, setLoading] = useState(true);
@@ -112,7 +112,7 @@ const DashboardHome = ({ token, onViewChange }) => {
             <span className="metric-change up">+12.4% vs last month</span>
           </div>
           <div className="metric-icon purple">
-            <DollarSign size={24} />
+            <IndianRupee size={24} />
           </div>
         </div>
 

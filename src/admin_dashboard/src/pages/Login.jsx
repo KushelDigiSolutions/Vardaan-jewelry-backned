@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 const Login = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('admin@vardaanecom.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -178,8 +179,8 @@ const Login = ({ onLoginSuccess }) => {
                     type="email"
                     required
                     className="form-control"
-                    placeholder="name@vardaanecom.com"
-                    value={email}
+                    placeholder="Enter your Email"
+                    // value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
@@ -232,30 +233,57 @@ const Login = ({ onLoginSuccess }) => {
                     type="email"
                     required
                     className="form-control"
-                    placeholder="name@vardaanecom.com"
-                    value={email}
+                    placeholder="Enter email"
+                    // value={email}
+                    autoComplete="off"
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
                 <div className="form-group">
                   <label>Password</label>
-                  <input
-                    type="password"
-                    required
-                    className="form-control"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      className="form-control"
+                      placeholder="••••••••"
+                      value={password}
+                      autoComplete="new-password"
+                      onChange={(e) => setPassword(e.target.value)}
+                      style={{ paddingRight: '44px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0',
+                        lineHeight: '1'
+                      }}
+                      tabIndex={-1}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '20px' }}>
+                {/* <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '20px' }}>
                   <span onClick={() => setUseOtp(true)} style={{ color: 'var(--secondary)', cursor: 'pointer' }}>
                     Login via OTP
                   </span>
                   <span onClick={() => setRecoveryMode(true)} style={{ color: 'var(--text-muted)', cursor: 'pointer' }}>
                     Forgot password?
                   </span>
-                </div>
+                </div> */}
                 <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                   {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
                 </button>
@@ -270,8 +298,8 @@ const Login = ({ onLoginSuccess }) => {
                     required
                     disabled={otpSent}
                     className="form-control"
-                    placeholder="name@vardaanecom.com"
-                    value={email}
+                    placeholder="Enter your email"
+                    // value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
@@ -284,7 +312,7 @@ const Login = ({ onLoginSuccess }) => {
                       required
                       maxLength={6}
                       className="form-control"
-                      placeholder="Enter 6-digit code"
+                      placeholder="enter code "
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
                     />

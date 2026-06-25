@@ -6,6 +6,7 @@ const Orders = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
+  const [methodFilter, setMethodFilter] = useState('');
 
   // Selected Order Drawer
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -111,7 +112,9 @@ const Orders = ({ token }) => {
   const filteredOrders = orders.filter(o => {
     const statusMatch = !statusFilter || o.orderStatus === statusFilter;
     const paymentMatch = !paymentFilter || o.paymentStatus === paymentFilter;
-    return statusMatch && paymentMatch;
+    const methodMatch = !methodFilter || 
+      (methodFilter === 'COD' ? o.paymentMethod === 'COD' : o.paymentMethod !== 'COD');
+    return statusMatch && paymentMatch && methodMatch;
   });
 
   return (
@@ -144,6 +147,16 @@ const Orders = ({ token }) => {
             <option value="paid">Paid</option>
             <option value="failed">Failed</option>
             <option value="refunded">Refunded</option>
+          </select>
+
+          <select
+            className="form-control"
+            value={methodFilter}
+            onChange={(e) => setMethodFilter(e.target.value)}
+          >
+            <option value="">All Payment Methods</option>
+            <option value="COD">Cash on Delivery (COD)</option>
+            <option value="Online">Online Payment</option>
           </select>
 
           <button className="btn btn-secondary" onClick={fetchOrders}>
