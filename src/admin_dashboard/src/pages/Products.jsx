@@ -82,6 +82,10 @@ const Products = ({ token }) => {
   // Blank / whitespace-only input is ignored
 
   useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     fetchProducts();
   }, [page, selectedCategory, sortOption]);
 

@@ -1,10 +1,11 @@
-import { LayoutDashboard, ShoppingCart, FolderOpen, ClipboardList, Users, Database, LogOut, Percent, RefreshCw, Mail } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, FolderOpen, ClipboardList, Users, Database, LogOut, Percent, RefreshCw, Mail, Image } from 'lucide-react';
 
 const Sidebar = ({ currentTab, onTabChange, adminUser, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'products', label: 'Products', icon: ShoppingCart },
     { id: 'categories', label: 'Categories', icon: FolderOpen },
+    { id: 'hero', label: 'Hero Settings', icon: Image },
     { id: 'orders', label: 'Orders', icon: ClipboardList },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'inventory', label: 'Inventory', icon: Database },

@@ -7,6 +7,7 @@ import Login from './pages/Login.jsx';
 import DashboardHome from './pages/DashboardHome.jsx';
 import Products from './pages/Products.jsx';
 import Categories from './pages/Categories.jsx';
+import HeroSettings from './pages/HeroSettings.jsx';
 import Orders from './pages/Orders.jsx';
 import Customers from './pages/Customers.jsx';
 import Inventory from './pages/Inventory.jsx';
@@ -49,6 +50,8 @@ function App() {
         return <Products token={token} />;
       case 'categories':
         return <Categories token={token} />;
+      case 'hero':
+        return <HeroSettings token={token} />;
       case 'orders':
         return <Orders token={token} />;
       case 'customers':

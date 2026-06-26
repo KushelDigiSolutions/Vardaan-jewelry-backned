@@ -26,6 +26,7 @@ import notificationRoutes from "./src/routes/notificationRoutes.js";
 import couponRoutes from "./src/routes/couponRoutes.js";
 import returnRoutes from "./src/routes/returnRoutes.js";
 import contactRoutes from "./src/routes/contactRoutes.js";
+import heroSlideRoutes from "./src/routes/heroSlideRoutes.js";
 
 // dotenv.config() is not needed here as 'dotenv/config' is loaded at the top to resolve import hoisting issues
 
@@ -62,6 +63,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/hero-slides", heroSlideRoutes);
 
 // Health Check
 app.get("/api", (req, res) => {
