@@ -17,7 +17,7 @@ const Sidebar = ({ currentTab, onTabChange, adminUser, onLogout }) => {
   return (
     <div className="sidebar">
       <div className="sidebar-logo">
-        🛍️ Vardaan Suite
+        🛍️ Vardaan
       </div>
 
       <ul className="sidebar-menu">

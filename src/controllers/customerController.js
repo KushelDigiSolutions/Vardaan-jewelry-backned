@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+import { sendEmail } from '../utils/email.js';
+import { getAccountStatusEmailTemplate } from '../utils/emailTemplates.js';
 
 // Get customer profiles directory (Admin only)
 export const getCustomers = async (req, res, next) => {
@@ -29,6 +31,20 @@ export const toggleCustomerStatus = async (req, res, next) => {
 
     customer.isActive = !customer.isActive;
     await customer.save();
+
+    // Send email to customer regarding their account status change
+    try {
+      const emailHtml = getAccountStatusEmailTemplate(customer.name, customer.isActive);
+      const actionName = customer.isActive ? 'Activated' : 'Suspended';
+      await sendEmail({
+        to: customer.email,
+        subject: `Your Vardaan Account Has Been ${actionName}`,
+        text: `Hello ${customer.name}, your Vardaan account status has been updated to: ${actionName}.`,
+        html: emailHtml
+      });
+    } catch (mailError) {
+      console.error('Failed to send status update email:', mailError);
+    }
 
     res.status(200).json({
       success: true,

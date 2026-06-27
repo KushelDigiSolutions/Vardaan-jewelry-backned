@@ -553,7 +553,7 @@ export const getContactThankYouEmailTemplate = (name, subject, message) => {
             <div class="inquiry-item"><strong>Subject:</strong> ${subject}</div>
             <div class="inquiry-item"><strong>Message Summary:</strong><br/>${message}</div>
           </div>
-
+ 
           <p class="lead-text">We look forward to assisting you in finding or customizing your perfect jewelry creation.</p>
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Concierge Team</b></p>
         </div>
@@ -566,3 +566,68 @@ export const getContactThankYouEmailTemplate = (name, subject, message) => {
     </html>
   `;
 };
+
+export const getAccountStatusEmailTemplate = (name, isActive) => {
+  const statusTitle = isActive ? 'Account Activated' : 'Account Suspended';
+  const statusMessage = isActive 
+    ? 'We are pleased to inform you that your Vardaan account has been successfully activated. You can now log in, browse our fine jewelry collection, place orders, and manage your account details.'
+    : 'We regret to inform you that your Vardaan account has been temporarily suspended/deactivated. If you believe this is a misunderstanding or wish to appeal this decision, please contact our concierge support desk.';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Vardaan - ${statusTitle}</title>
+      <style>
+        body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
+        .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
+        .header { background: #07512E; padding: 40px 30px; text-align: center; color: #ffffff; border-bottom: 3px solid #C4A46C; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: normal; letter-spacing: 2px; font-family: 'Playfair Display', serif; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; font-style: italic; letter-spacing: 1px; }
+        .content { padding: 40px 35px; background: #ffffff; }
+        .greeting { font-size: 18px; color: #303030; margin-top: 0; font-weight: normal; letter-spacing: 0.5px; }
+        .lead-text { color: #555555; font-size: 15px; line-height: 1.7; margin-bottom: 25px; }
+        .status-box { background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 25px; text-align: center; margin: 30px 0; }
+        .status-label { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #8C7547; margin-bottom: 10px; font-weight: bold; }
+        .status-title { font-size: 24px; font-weight: bold; color: ${isActive ? '#07512E' : '#dc2626'}; letter-spacing: 1px; margin: 0; }
+        .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
+        .footer p { margin: 4px 0; }
+        .footer a { color: #07512E; text-decoration: none; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>VARDAAN</h1>
+          <p>More than a Jewel, a Blessing</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear ${name},</p>
+          <p class="lead-text">There has been an update regarding your customer account status with Vardaan.</p>
+          
+          <div class="status-box">
+            <div class="status-label">Account Status Update</div>
+            <div class="status-title">${statusTitle}</div>
+          </div>
+
+          <p class="lead-text">${statusMessage}</p>
+          
+          ${isActive ? `
+          <p class="lead-text">To log in, please visit our website and sign in with your registered credentials.</p>
+          ` : `
+          <p class="lead-text">If you have any pending orders, they may be put on hold or cancelled. For further clarification, please get in touch with our support representatives.</p>
+          `}
+
+          <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
+        </div>
+        <div class="footer">
+          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+

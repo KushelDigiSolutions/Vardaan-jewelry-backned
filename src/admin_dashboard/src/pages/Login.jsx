@@ -158,7 +158,7 @@ const Login = ({ onLoginSuccess }) => {
     <div className="login-wrapper">
       <div className="card login-card">
         <div className="login-logo">
-          🛍️ Vardaan Panel
+           Vardaan Jewellery
         </div>
         
         {error && (
@@ -250,7 +250,7 @@ const Login = ({ onLoginSuccess }) => {
                       value={password}
                       autoComplete="new-password"
                       onChange={(e) => setPassword(e.target.value)}
-                      style={{ paddingRight: '44px' }}
+                      style={{ width: '100%', paddingRight: '44px' }}
                     />
                     <button
                       type="button"
