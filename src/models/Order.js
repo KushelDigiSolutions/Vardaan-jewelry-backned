@@ -32,7 +32,8 @@ const orderSchema = new mongoose.Schema({
     city: { type: String, required: true },
     state: { type: String, required: true },
     zipCode: { type: String, required: true },
-    country: { type: String, required: true }
+    country: { type: String, required: true },
+    mobile: { type: String, default: '' }
   },
   shippingMethod: { type: String, default: 'Standard Delivery' },
   shippingCost: { type: Number, default: 0 },
@@ -48,6 +49,8 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   },
   totalAmount: { type: Number, required: true },
+  shiprocketOrderId: { type: String, default: '' },
+  shiprocketShipmentId: { type: String, default: '' },
   tracking: {
     carrier: { type: String, default: '' },
     awb: { type: String, default: '' },

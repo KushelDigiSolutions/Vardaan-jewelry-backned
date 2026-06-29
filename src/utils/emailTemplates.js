@@ -1,9 +1,9 @@
 export const getInvoiceEmailTemplate = (order) => {
   const itemsHtml = order.items.map(item => `
     <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #1e293b;">${item.name}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #475569; text-align: center;">${item.quantity}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #1e293b; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
     </tr>
   `).join('');
 
@@ -12,42 +12,48 @@ export const getInvoiceEmailTemplate = (order) => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Order Invoice</title>
+      <title>Payment Receipt & Invoice</title>
       <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }
-        .container { max-width: 600px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin: 0 auto; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-        .header { background: linear-gradient(135deg, #10b981, #059669); padding: 30px; text-align: center; color: #ffffff; }
-        .header h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 0.5px; }
-        .header p { margin: 5px 0 0 0; opacity: 0.9; font-size: 14px; }
-        .content { padding: 30px; }
-        .welcome-text { font-size: 16px; color: #0f172a; margin-top: 0; font-weight: 600; }
-        .table { width: 100%; border-collapse: collapse; margin: 20px 0 25px 0; }
-        .table th { background: #f1f5f9; padding: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #475569; text-align: left; border-bottom: 2px solid #e2e8f0; }
-        .total-row td { padding: 10px 12px; font-size: 14px; color: #475569; }
-        .grand-total { font-size: 16px !important; font-weight: bold !important; color: #10b981 !important; border-top: 2px solid #e2e8f0; }
-        .footer { background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+        body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
+        .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
+        .header { background: #07512E; padding: 40px 30px; text-align: center; color: #ffffff; border-bottom: 3px solid #C4A46C; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: normal; letter-spacing: 2px; font-family: 'Playfair Display', serif; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; font-style: italic; letter-spacing: 1px; }
+        .content { padding: 40px 35px; background: #ffffff; }
+        .welcome-text { font-size: 18px; color: #303030; margin-top: 0; font-weight: normal; letter-spacing: 0.5px; }
+        
+        .invoice-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+        .invoice-table th { background: #F8F5EE; padding: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #8C7547; text-align: left; border-bottom: 1px solid #E5DCC5; }
+        .invoice-table td { padding: 12px; border-bottom: 1px solid #F0ECE3; font-size: 14px; }
+        
+        .total-row td { padding: 10px 12px; font-size: 14px; color: #555555; }
+        .grand-total { font-size: 16px !important; font-weight: bold !important; color: #07512E !important; border-top: 2px solid #E5DCC5; }
+        .address-box { margin-top: 20px; font-size: 14px; color: #555555; line-height: 1.6; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; }
+        .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
+        .footer p { margin: 4px 0; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>Vardaan Store</h1>
-          <p>Order Confirmed & Invoice Receipt</p>
+          <h1>VARDAAN</h1>
+          <p>Payment Invoice & Receipt</p>
         </div>
         <div class="content">
-          <p class="welcome-text">Hello ${order.user?.name || 'Customer'},</p>
-          <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0;">We have successfully processed the payment for your order. Here is your transaction summary.</p>
+          <p class="welcome-text">Dear ${order.user?.name || 'Customer'},</p>
+          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin: 0;">We have successfully received the payment for your order. Your transaction is complete and the order is confirmed for fulfillment. Here is your receipt summary:</p>
           
-          <table style="width:100%; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin: 20px 0; font-size:13px; border-spacing: 0 6px;">
-            <tr><td style="color: #64748b;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #0f172a;">#${order._id}</td></tr>
-            <tr><td style="color: #64748b;"><strong>Payment Mode:</strong></td><td style="text-align: right; color: #0f172a;">${order.paymentMethod}</td></tr>
-            <tr><td style="color: #64748b;"><strong>Transaction Date:</strong></td><td style="text-align: right; color: #0f172a;">${new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td></tr>
+          <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
+            <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Payment Method:</strong></td><td style="text-align: right; color: #303030; text-transform: uppercase;">${order.paymentMethod}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Transaction Date:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Payment Status:</strong></td><td style="text-align: right; font-weight: bold; color: #07512E; text-transform: uppercase;">PAID</td></tr>
           </table>
 
-          <table class="table">
+          <table class="invoice-table">
             <thead>
               <tr>
-                <th style="text-align: left;">Product Item</th>
+                <th style="text-align: left;">Jewelry Item</th>
                 <th style="text-align: center; width: 60px;">Qty</th>
                 <th style="text-align: right; width: 100px;">Price</th>
               </tr>
@@ -56,26 +62,29 @@ export const getInvoiceEmailTemplate = (order) => {
               ${itemsHtml}
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
-                <td style="text-align: right; font-weight: bold; color: #1e293b;">₹${order.shippingCost.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString('en-IN')}</td>
               </tr>
               <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Grand Total:</td>
+                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Paid:</td>
                 <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString('en-IN')}</td>
               </tr>
             </tbody>
           </table>
 
-          <h4 style="margin: 0 0 10px 0; color: #0f172a; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">Shipping Address</h4>
-          <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+          <h4 style="margin: 25px 0 10px 0; color: #07512E; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Delivery Address</h4>
+          <p class="address-box">
             <b>${order.user?.name}</b><br/>
             ${order.shippingAddress.street}<br/>
             ${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zipCode}<br/>
             ${order.shippingAddress.country}
           </p>
+
+          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin-top: 30px;">Your items will be packaged and prepared for shipping shortly. We will update you with tracking details once dispatched.</p>
+          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Thank you for shopping with Vardaan Store!</p>
-          <p style="margin-top: 6px; font-size: 11px;">&copy; ${new Date().getFullYear()} Vardaan Store. All rights reserved.</p>
+          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -89,28 +98,33 @@ export const getStatusUpdateEmailTemplate = (order, title, message) => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Order Status Update</title>
+      <title>Order Update</title>
       <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }
-        .container { max-width: 600px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin: 0 auto; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-        .header { background: linear-gradient(135deg, #10b981, #059669); padding: 30px; text-align: center; color: #ffffff; }
-        .header h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 0.5px; }
-        .content { padding: 30px; }
-        .welcome-text { font-size: 16px; color: #0f172a; margin-top: 0; font-weight: 600; }
-        .update-box { background: #f0fdf4; border: 1px dashed #10b981; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-        .update-status { font-size: 18px; font-weight: bold; color: #047857; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px; }
-        .update-desc { font-size: 14px; color: #065f46; margin: 0; }
-        .footer { background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+        body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
+        .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
+        .header { background: #07512E; padding: 40px 30px; text-align: center; color: #ffffff; border-bottom: 3px solid #C4A46C; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: normal; letter-spacing: 2px; font-family: 'Playfair Display', serif; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; font-style: italic; letter-spacing: 1px; }
+        .content { padding: 40px 35px; background: #ffffff; }
+        .welcome-text { font-size: 18px; color: #303030; margin-top: 0; font-weight: normal; letter-spacing: 0.5px; }
+        
+        .update-box { background: #F8F5EE; border: 1px dashed #07512E; border-radius: 6px; padding: 20px; text-align: center; margin: 20px 0; }
+        .update-status { font-size: 18px; font-weight: bold; color: #07512E; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px; }
+        .update-desc { font-size: 15px; color: #555555; margin: 0; line-height: 1.6; }
+        
+        .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
+        .footer p { margin: 4px 0; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>Vardaan Store</h1>
+          <h1>VARDAAN</h1>
+          <p>Order Status Update</p>
         </div>
         <div class="content">
-          <p class="welcome-text">Hello ${order.user?.name || 'Customer'},</p>
-          <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0;">We wanted to update you on the progress of your order <b>#${order._id}</b>.</p>
+          <p class="welcome-text">Dear ${order.user?.name || 'Customer'},</p>
+          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin: 0;">We wanted to update you on the progress of your order <b>#${order._id}</b>.</p>
           
           <div class="update-box">
             <p class="update-status">${title}</p>
@@ -118,17 +132,20 @@ export const getStatusUpdateEmailTemplate = (order, title, message) => {
           </div>
 
           ${order.tracking?.awb ? `
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; font-size: 13px; color: #475569; margin: 20px 0;">
+          <div style="background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 20px; font-size: 14px; color: #555555; margin: 20px 0;">
             <p style="margin: 4px 0;"><strong>Shipping Carrier:</strong> ${order.tracking.carrier}</p>
-            <p style="margin: 4px 0;"><strong>Airway Bill (AWB):</strong> <span style="font-family: monospace; font-weight: bold; color: #10b981;">${order.tracking.awb}</span></p>
+            <p style="margin: 4px 0;"><strong>Tracking Number (AWB):</strong> <span style="font-family: monospace; font-weight: bold; color: #07512E;">${order.tracking.awb}</span></p>
+            <div style="margin-top: 15px;">
+              <a href="https://shiprocket.co/tracking/${order.tracking.awb}" target="_blank" style="background: #07512E; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; display: inline-block;">Track Your Package</a>
+            </div>
           </div>
           ` : ''}
 
-          <p style="font-size: 13px; color: #94a3b8; line-height: 1.5; margin: 20px 0 0 0;">You can check the dispatch details and track the shipment status anytime by logging into your Customer Dashboard.</p>
+          <p style="font-size: 14px; color: #8C7547; line-height: 1.6; margin: 20px 0 0 0;">You can check the dispatch details and track the shipment status anytime by logging into your Customer Dashboard.</p>
         </div>
         <div class="footer">
-          <p>Thank you for shopping with Vardaan Store!</p>
-          <p style="margin-top: 6px; font-size: 11px;">&copy; ${new Date().getFullYear()} Vardaan Store. All rights reserved.</p>
+          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
     </body>

@@ -7,6 +7,7 @@ import Coupon from '../models/Coupon.js';
 import { incrementCouponUsage } from './couponController.js';
 import { sendEmail } from '../utils/email.js';
 import { getInvoiceEmailTemplate, getStatusUpdateEmailTemplate, getOrderPlacedEmailTemplate } from '../utils/emailTemplates.js';
+import { createShiprocketOrder, generateAWB } from '../utils/shiprocket.js';
 
 // Initialize Checkout / Create Pending Order from Cart
 export const checkoutOrder = async (req, res, next) => {
@@ -124,24 +125,45 @@ export const checkoutOrder = async (req, res, next) => {
       await incrementCouponUsage(couponCode);
     }
 
-    // Send Order Placement Email
-    try {
-      const orderForEmail = {
-        ...order.toObject(),
-        user: {
-          name: req.user.name,
-          email: req.user.email
-        }
-      };
-      const emailHtml = getOrderPlacedEmailTemplate(orderForEmail);
-      await sendEmail({
-        to: req.user.email,
-        subject: `Your Vardaan Order #${order._id} Has Been Placed!`,
-        text: `Dear ${req.user.name},\n\nThank you for shopping with us! Your order #${order._id} has been successfully placed. We will notify you once your order is confirmed.\n\nTotal Amount: ₹${order.totalAmount}\n\nWarm regards,\nThe Vardaan Team`,
-        html: emailHtml
-      });
-    } catch (emailError) {
-      console.error('Failed to send order confirmation email:', emailError);
+    // Auto-register COD orders in Shiprocket immediately
+    if (paymentMethod === 'COD') {
+      try {
+        const populatedOrder = await Order.findById(order._id)
+          .populate('user', 'name email mobile')
+          .populate('items.product', 'sku');
+        const srDetails = await createShiprocketOrder(populatedOrder, req.user);
+        order.shiprocketOrderId = srDetails.shiprocketOrderId;
+        order.shiprocketShipmentId = srDetails.shipmentId;
+        order.tracking.statusHistory.push({
+          status: 'pending',
+          message: `Order registered in Shiprocket. Shipment ID: ${srDetails.shipmentId}`
+        });
+        await order.save();
+      } catch (srErr) {
+        console.error('Auto Shiprocket creation failed for COD order:', srErr);
+      }
+    }
+
+    // Send Order Placement Email (Only for COD, Online orders send email after payment verification)
+    if (paymentMethod === 'COD') {
+      try {
+        const orderForEmail = {
+          ...order.toObject(),
+          user: {
+            name: req.user.name,
+            email: req.user.email
+          }
+        };
+        const emailHtml = getOrderPlacedEmailTemplate(orderForEmail);
+        await sendEmail({
+          to: req.user.email,
+          subject: `Your Vardaan Order #${order._id} Has Been Placed!`,
+          text: `Dear ${req.user.name},\n\nThank you for shopping with us! Your order #${order._id} has been successfully placed. We will notify you once your order is confirmed.\n\nTotal Amount: ₹${order.totalAmount}\n\nWarm regards,\nThe Vardaan Team`,
+          html: emailHtml
+        });
+      } catch (emailError) {
+        console.error('Failed to send order confirmation email:', emailError);
+      }
     }
 
     res.status(201).json({ success: true, data: order });
@@ -313,11 +335,11 @@ export const updateOrderStatus = async (req, res, next) => {
   }
 };
 
-// Ship Order / Create Shipment & Mock AWB (Admin)
+// Ship Order / Create Shipment & AWB (Admin)
 export const shipOrder = async (req, res, next) => {
   try {
     const { carrier = 'Delhivery' } = req.body;
-    const order = await Order.findById(req.params.id).populate('user', 'name email');
+    const order = await Order.findById(req.params.id).populate('user', 'name email mobile');
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -327,15 +349,43 @@ export const shipOrder = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Only confirmed orders can be shipped' });
     }
 
-    // Generate Mock Airway Bill (AWB) number
-    const mockAWB = `AWB${Math.floor(10000000 + Math.random() * 90000000)}`;
+    let finalCarrier = carrier;
+    let awbNumber = '';
+
+    if (carrier === 'Shiprocket') {
+      try {
+        let shipmentId = order.shiprocketShipmentId;
+        if (!shipmentId) {
+          const populatedOrder = await Order.findById(order._id)
+            .populate('user', 'name email mobile')
+            .populate('items.product', 'sku');
+          const srDetails = await createShiprocketOrder(populatedOrder, order.user);
+          shipmentId = srDetails.shipmentId;
+          order.shiprocketOrderId = srDetails.shiprocketOrderId;
+          order.shiprocketShipmentId = srDetails.shipmentId;
+        }
+
+        const awbResult = await generateAWB(shipmentId);
+        awbNumber = awbResult.awb;
+        finalCarrier = awbResult.courier;
+      } catch (shiprocketError) {
+        console.error('Shiprocket API error:', shiprocketError);
+        return res.status(400).json({
+          success: false,
+          message: `Shiprocket Error: ${shiprocketError.message || shiprocketError}`
+        });
+      }
+    } else {
+      // Generate Mock Airway Bill (AWB) number for other carriers
+      awbNumber = `AWB${Math.floor(10000000 + Math.random() * 90000000)}`;
+    }
 
     order.orderStatus = 'shipped';
-    order.tracking.carrier = carrier;
-    order.tracking.awb = mockAWB;
+    order.tracking.carrier = finalCarrier;
+    order.tracking.awb = awbNumber;
     order.tracking.statusHistory.push({
       status: 'shipped',
-      message: `Shipment created via ${carrier}. Airway Bill (AWB): ${mockAWB}`
+      message: `Shipment created via ${finalCarrier}. Airway Bill (AWB): ${awbNumber}`
     });
 
     await order.save();
@@ -344,15 +394,19 @@ export const shipOrder = async (req, res, next) => {
     await Notification.create({
       user: order.user._id,
       title: 'Order Dispatched',
-      message: `Your order #${order._id} has been shipped via ${carrier}. Tracking: ${mockAWB}`
+      message: `Your order #${order._id} has been shipped via ${finalCarrier}. Tracking: ${awbNumber}`
     });
 
-    await sendEmail({
-      to: order.user.email,
-      subject: `Order #${order._id} Dispatched! - Vardaan Store`,
-      text: `Good news! Your order #${order._id} has been dispatched.\nCarrier: ${carrier}\nAWB / Tracking Number: ${mockAWB}\n\nYou can track the package status from your dashboard.`,
-      html: getStatusUpdateEmailTemplate(order, 'Order Dispatched & Shipped', `Your package has been successfully picked up by ${carrier} and is in transit.`)
-    });
+    try {
+      await sendEmail({
+        to: order.user.email,
+        subject: `Order #${order._id} Dispatched! - Vardaan Store`,
+        text: `Good news! Your order #${order._id} has been dispatched.\nCarrier: ${finalCarrier}\nAWB / Tracking Number: ${awbNumber}\n\nYou can track the package status from your dashboard.`,
+        html: getStatusUpdateEmailTemplate(order, 'Order Dispatched & Shipped', `Your package has been successfully picked up by ${finalCarrier} and is in transit.`)
+      });
+    } catch (err) {
+      console.error("Failed to send dispatch email:", err);
+    }
 
     res.status(200).json({ success: true, data: order });
   } catch (error) {
