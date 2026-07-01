@@ -340,10 +340,16 @@ const HeroSettings = ({ token }) => {
               <label>Sort Order</label>
               <input
                 type="number"
+                min="0"
                 className="form-control"
                 placeholder="0"
                 value={order}
-                onChange={(e) => setOrder(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || Number(val) >= 0) {
+                    setOrder(val);
+                  }
+                }}
               />
             </div>
             <div className="form-group">

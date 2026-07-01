@@ -146,7 +146,7 @@ const Coupons = ({ token }) => {
                         : `₹${coupon.discountValue} Flat Off`}
                     </td>
                     <td>₹{coupon.minOrderAmount.toLocaleString('en-IN')}</td>
-                    <td>{new Date(coupon.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td>{new Date(coupon.expiryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td>
                       {/* Usage: usedCount / usageLimit */}
                       <span style={{ fontSize: '12px', fontWeight: '600' }}>
@@ -237,9 +237,9 @@ const Coupons = ({ token }) => {
           </div>
 
           <div className="form-group">
-            <label>Expiry Date</label>
+            <label>Expiry Date & Time</label>
             <input
-              type="date"
+              type="datetime-local"
               required
               className="form-control"
               value={expiryDate}
