@@ -39,6 +39,12 @@ const productSchema = new mongoose.Schema({
       netWeight: { type: String, default: '' }
     }
   ],
+  sizes: [
+    {
+      size: { type: String, required: true },
+      price: { type: Number, default: null }
+    }
+  ],
   reviews: [
     {
       user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

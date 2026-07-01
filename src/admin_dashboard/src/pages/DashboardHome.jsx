@@ -167,7 +167,12 @@ const DashboardHome = ({ token, onViewChange }) => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                 <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} />
+                <YAxis
+      width={70}
+      stroke="var(--text-muted)"
+      fontSize={11}
+      tickFormatter={(value) => `${value / 1000}k`}
+    />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#0d1527', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                   formatter={(value) => [`₹${value}`, 'Revenue']}

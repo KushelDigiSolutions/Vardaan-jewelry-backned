@@ -35,10 +35,15 @@ const Products = ({ token }) => {
     mainImage: '',
     wearableMedia: [], // Array of {url, mediaType}
     attributes: [], // Array of {key, value}
-    variants: [] // Array of variants
+    variants: [], // Array of variants
+    sizes: []
   });
   const [newAttrKey, setNewAttrKey] = useState('');
   const [newAttrVal, setNewAttrVal] = useState('');
+  const [newSize, setNewSize] = useState({
+    size: '',
+    price: ''
+  });
   const [newVariant, setNewVariant] = useState({
     karat: '18Kt Gold',
     metalColor: 'White Gold',
@@ -54,7 +59,7 @@ const Products = ({ token }) => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const url = `/api/products?page=${page}&limit=10&search=${searchTerm}&category=${selectedCategory}&sort=${sortOption}`;
+      const url = `/api/products?page=${page}&limit=10&search=${searchTerm}&category=${selectedCategory}&sort=${sortOption}&isActive=all`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
@@ -131,7 +136,8 @@ const Products = ({ token }) => {
       mainImage: '',
       wearableMedia: [],
       attributes: [],
-      variants: []
+      variants: [],
+      sizes: []
     });
     setIsEditing(true);
   };
@@ -151,7 +157,8 @@ const Products = ({ token }) => {
       mainImage: product.mainImage || '',
       wearableMedia: product.wearableMedia || [],
       attributes: product.attributes || [],
-      variants: product.variants || []
+      variants: product.variants || [],
+      sizes: product.sizes || []
     });
     setIsEditing(true);
   };
@@ -211,6 +218,38 @@ const Products = ({ token }) => {
       grossWeight: '',
       netWeight: ''
     });
+  };
+
+  const handleAddSize = () => {
+    if (!newSize.size) {
+      alert('Please fill out the size field.');
+      return;
+    }
+    const sizes = newSize.size.split(',').map(s => s.trim()).filter(Boolean);
+    if (sizes.length === 0) {
+      alert('Please enter a valid size.');
+      return;
+    }
+    const newSizesList = sizes.map(sizeVal => ({
+      size: sizeVal,
+      price: newSize.price !== '' ? Number(newSize.price) : null
+    }));
+    setFormData({
+      ...formData,
+      sizes: [
+        ...(formData.sizes || []),
+        ...newSizesList
+      ]
+    });
+    setNewSize({
+      size: '',
+      price: ''
+    });
+  };
+
+  const handleRemoveSize = (idx) => {
+    const updated = (formData.sizes || []).filter((_, i) => i !== idx);
+    setFormData({ ...formData, sizes: updated });
   };
 
   const [mainImageUploading, setMainImageUploading] = useState(false);
@@ -624,14 +663,14 @@ const Products = ({ token }) => {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Key (e.g. Size)"
+                  placeholder="Key ex- Metal"
                   value={newAttrKey}
                   onChange={(e) => setNewAttrKey(e.target.value)}
                 />
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Value (e.g. XXL)"
+                  placeholder="Value (e.g. brass)"
                   value={newAttrVal}
                   onChange={(e) => setNewAttrVal(e.target.value)}
                 />
@@ -642,7 +681,7 @@ const Products = ({ token }) => {
               
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {formData.attributes.map((attr, idx) => (
-                  <span key={idx} className="badge badge-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px' }}>
+                  <span key={idx} className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px' }}>
                     {attr.key}: {attr.value}
                     <MinusCircle size={12} style={{ cursor: 'pointer', color: 'var(--danger)' }} onClick={() => handleRemoveAttribute(idx)} />
                   </span>
@@ -650,8 +689,44 @@ const Products = ({ token }) => {
               </div>
             </div>
 
-            {/* Variants Section */}
+            {/* Sizes & Custom Price Section */}
             <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+              <label style={{ fontWeight: 'bold' }}>Product Sizes & Custom Pricing</label>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 12px 0' }}>
+                Specify sizes and optional custom prices. Leave the price field blank to fall back to the base product price.
+              </p>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Size (e.g. XL, 14, 16)"
+                  value={newSize.size}
+                  onChange={(e) => setNewSize({ ...newSize, size: e.target.value })}
+                />
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder="Price (₹) - Optional"
+                  value={newSize.price}
+                  onChange={(e) => setNewSize({ ...newSize, price: e.target.value })}
+                />
+                <button type="button" className="btn btn-secondary" onClick={handleAddSize} style={{ padding: '12px' }}>
+                  Add Size Option
+                </button>
+              </div>
+              
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {formData.sizes && formData.sizes.map((s, idx) => (
+                  <span key={idx} className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 10px', fontSize: '12px', backgroundColor: 'rgba(7, 81, 46, 0.1)', border: '1px solid rgba(7, 81, 46, 0.2)', color: 'var(--text-dark)' }}>
+                    Size: <strong>{s.size}</strong> {s.price ? `(₹${s.price})` : '(Default Price)'}
+                    <MinusCircle size={14} style={{ cursor: 'pointer', color: 'var(--danger)' }} onClick={() => handleRemoveSize(idx)} />
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Variants Section */}
+            {/* <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
               <label style={{ fontWeight: 'bold' }}>Product Variant Options & Custom Pricing</label>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 12px 0' }}>
                 Configure specific metal color, karat purity, size, and individual price adjustments.
@@ -818,7 +893,7 @@ const Products = ({ token }) => {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px', paddingBefore: '16px', borderTop: '1px solid var(--border-color)' }}>

@@ -20,7 +20,11 @@ export const getProducts = async (req, res, next) => {
 
     // Apply filters
     if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
+      if (isActive !== 'all') {
+        query.isActive = isActive === 'true';
+      }
+    } else {
+      query.isActive = true;
     }
 
     if (search) {
@@ -88,7 +92,7 @@ export const getProducts = async (req, res, next) => {
 export const getProductBySlug = async (req, res, next) => {
   try {
     const { slug } = req.params;
-    const product = await Product.findOne({ slug }).populate('category', 'name slug');
+    const product = await Product.findOne({ slug, isActive: true }).populate('category', 'name slug');
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -101,7 +105,7 @@ export const getProductBySlug = async (req, res, next) => {
 // Create product (Admin)
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia, sizes } = req.body;
 
     const skuExists = await Product.findOne({ sku });
     if (skuExists) {
@@ -149,6 +153,11 @@ export const createProduct = async (req, res, next) => {
       parsedWearableMedia = typeof wearableMedia === 'string' ? JSON.parse(wearableMedia) : wearableMedia;
     }
 
+    let parsedSizes = [];
+    if (sizes) {
+      parsedSizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+    }
+
     const product = await Product.create({
       name,
       description,
@@ -162,7 +171,8 @@ export const createProduct = async (req, res, next) => {
       wearableMedia: parsedWearableMedia,
       isActive: isActive !== undefined ? isActive : true,
       attributes: parsedAttributes,
-      variants: parsedVariants
+      variants: parsedVariants,
+      sizes: parsedSizes
     });
 
     // Create entry log for stock levels
@@ -183,7 +193,7 @@ export const createProduct = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia, sizes } = req.body;
 
     const product = await Product.findById(id);
     if (!product) {
@@ -215,6 +225,10 @@ export const updateProduct = async (req, res, next) => {
 
     if (variants) {
       product.variants = typeof variants === 'string' ? JSON.parse(variants) : variants;
+    }
+
+    if (sizes !== undefined) {
+      product.sizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
     }
 
     // Handle inventory adjustment
@@ -398,7 +412,7 @@ export const getBestSellers = async (req, res, next) => {
 export const getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id).populate('category', 'name slug');
-    if (!product) {
+    if (!product || !product.isActive) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
     res.status(200).json({ success: true, data: product });
