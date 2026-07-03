@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { Percent, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Percent, Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Coupons = ({ token }) => {
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // Form States
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState('percentage');
   const [discountValue, setDiscountValue] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('');
+  const [startDate, setStartDate] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [usageLimit, setUsageLimit] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+
+  const getCurrentDateTimeString = () => {
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
 
   const fetchCoupons = async () => {
     setLoading(true);
@@ -37,7 +46,69 @@ const Coupons = ({ token }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!code || !discountValue || !expiryDate) return;
+    
+    if (!code || !code.trim()) {
+      alert('Please fill out the Coupon Code Name field.');
+      return;
+    }
+    if (!discountValue) {
+      alert('Please fill out the Discount Value field.');
+      return;
+    }
+    if (!startDate) {
+      alert('Please fill out the Start Date & Time field.');
+      return;
+    }
+    if (!expiryDate) {
+      alert('Please fill out the Expiry Date & Time field.');
+      return;
+    }
+
+    // Validation: Discount Value & Type range
+    const dVal = Number(discountValue);
+    if (isNaN(dVal) || dVal <= 0) {
+      alert('Discount Value must be a valid number greater than 0.');
+      return;
+    }
+    if (discountType === 'percentage' && (dVal < 1 || dVal > 99)) {
+      alert('Percentage discount must be between 1 and 99.');
+      return;
+    }
+
+    // Validation: Minimum Order Threshold
+    if (minOrderAmount !== '') {
+      const minAmt = Number(minOrderAmount);
+      if (isNaN(minAmt) || minAmt < 0) {
+        alert('Minimum Order Threshold must be 0 or more.');
+        return;
+      }
+    }
+
+    // Validation: Max Usage Limit
+    if (usageLimit !== '') {
+      const limit = Number(usageLimit);
+      if (isNaN(limit) || limit < 1) {
+        alert('Max Usage Limit must be 1 or more.');
+        return;
+      }
+    }
+
+    const now = new Date();
+    const sDate = new Date(startDate);
+    const eDate = new Date(expiryDate);
+
+    // Validation: Start Date must be today or in the future
+    // Allow a small 1-minute buffer for client-server clock sync issues
+    if (sDate < new Date(now.getTime() - 60000)) {
+      alert('Start Date & Time must be today or in the future.');
+      return;
+    }
+
+    // Validation: Expiry Date must be after Start Date
+    if (eDate <= sDate) {
+      alert('Expiry Date & Time must be after the Start Date & Time.');
+      return;
+    }
 
     setFormLoading(true);
     try {
@@ -52,7 +123,8 @@ const Coupons = ({ token }) => {
           discountType,
           discountValue: Number(discountValue),
           minOrderAmount: Number(minOrderAmount) || 0,
-          expiryDate,
+          startDate: new Date(startDate).toISOString(),
+          expiryDate: new Date(expiryDate).toISOString(),
           usageLimit: usageLimit ? Number(usageLimit) : null
         })
       });
@@ -63,6 +135,7 @@ const Coupons = ({ token }) => {
         setCode('');
         setDiscountValue('');
         setMinOrderAmount('');
+        setStartDate('');
         setExpiryDate('');
         setUsageLimit('');
         fetchCoupons();
@@ -96,6 +169,9 @@ const Coupons = ({ token }) => {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(coupons.length / PAGE_SIZE));
+  const pagedCoupons = coupons.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
       
@@ -115,6 +191,7 @@ const Coupons = ({ token }) => {
                 <th>Coupon Code</th>
                 <th>Discount Rate</th>
                 <th>Minimum Cart</th>
+                <th>Starts Date</th>
                 <th>Expires Date</th>
                 <th>Usage</th>
                 <th>Status</th>
@@ -124,18 +201,18 @@ const Coupons = ({ token }) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
                     Loading active coupons...
                   </td>
                 </tr>
               ) : coupons.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
                     No promotional coupons created.
                   </td>
                 </tr>
               ) : (
-                coupons.map(coupon => (
+                pagedCoupons.map(coupon => (
                   <tr key={coupon._id}>
                     <td style={{ fontWeight: 'bold', color: 'var(--primary)', letterSpacing: '0.5px' }}>
                       {coupon.code}
@@ -146,6 +223,12 @@ const Coupons = ({ token }) => {
                         : `₹${coupon.discountValue} Flat Off`}
                     </td>
                     <td>₹{coupon.minOrderAmount.toLocaleString('en-IN')}</td>
+                    <td>
+                      {coupon.startDate 
+                        ? new Date(coupon.startDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                        : 'Immediate'
+                      }
+                    </td>
                     <td>{new Date(coupon.expiryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td>
                       {/* Usage: usedCount / usageLimit */}
@@ -161,8 +244,10 @@ const Coupons = ({ token }) => {
                       {(() => {
                         const expired = new Date(coupon.expiryDate) <= new Date();
                         const limitReached = coupon.usageLimit !== null && coupon.usageLimit !== undefined && (coupon.usedCount ?? 0) >= coupon.usageLimit;
+                        const notStarted = coupon.startDate && new Date(coupon.startDate) > new Date();
                         if (limitReached) return <span className="badge badge-danger">Limit Reached</span>;
                         if (expired || !coupon.isActive) return <span className="badge badge-danger">Expired</span>;
+                        if (notStarted) return <span className="badge badge-warning">Scheduled</span>;
                         return <span className="badge badge-success">Valid</span>;
                       })()}
                     </td>
@@ -177,6 +262,33 @@ const Coupons = ({ token }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderTop: '1px solid var(--border-color)', fontSize: '12px' }}>
+            <span style={{ color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages} ({coupons.length} coupons)
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Coupon Creator Form */}
@@ -237,12 +349,25 @@ const Coupons = ({ token }) => {
           </div>
 
           <div className="form-group">
+            <label>Start Date & Time</label>
+            <input
+              type="datetime-local"
+              required
+              className="form-control"
+              value={startDate}
+              min={getCurrentDateTimeString()}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
             <label>Expiry Date & Time</label>
             <input
               type="datetime-local"
               required
               className="form-control"
               value={expiryDate}
+              min={startDate || getCurrentDateTimeString()}
               onChange={(e) => setExpiryDate(e.target.value)}
             />
           </div>
@@ -259,7 +384,7 @@ const Coupons = ({ token }) => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={formLoading || !code || !discountValue || !expiryDate} style={{ justifyContent: 'center' }}>
+          <button type="submit" className="btn btn-primary" disabled={formLoading} style={{ justifyContent: 'center' }}>
             {formLoading ? 'Creating...' : 'Create Promo Code'}
           </button>
         </form>

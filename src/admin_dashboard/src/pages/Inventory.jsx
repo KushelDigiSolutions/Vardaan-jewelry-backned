@@ -20,6 +20,7 @@ const Inventory = ({ token }) => {
   // Catalog Stock Index search + pagination
   const [stockSearch, setStockSearch] = useState('');
   const [stockPage, setStockPage] = useState(1);
+  const [stockStatusFilter, setStockStatusFilter] = useState('all');
 
   // Stock Ledger Audit Logs search + pagination
   const [logsSearch, setLogsSearch] = useState('');
@@ -27,6 +28,7 @@ const Inventory = ({ token }) => {
   const [logsTotalPages, setLogsTotalPages] = useState(1);
   const [logsTotal, setLogsTotal] = useState(0);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logTypeFilter, setLogTypeFilter] = useState('all');
 
   const fetchProducts = async () => {
     try {
@@ -39,11 +41,11 @@ const Inventory = ({ token }) => {
     }
   };
 
-  const fetchLogs = async (page = 1, search = '') => {
+  const fetchLogs = async (page = 1, search = '', type = 'all') => {
     setLogsLoading(true);
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
-      const url = `/api/inventory/logs?page=${page}&limit=${LOGS_PAGE_SIZE}&search=${encodeURIComponent(search)}`;
+      const url = `/api/inventory/logs?page=${page}&limit=${LOGS_PAGE_SIZE}&search=${encodeURIComponent(search)}&type=${type}`;
       const logsRes = await fetch(url, { headers });
       const logsData = await logsRes.json();
       if (logsData.success) {
@@ -60,7 +62,7 @@ const Inventory = ({ token }) => {
 
   const fetchInventoryData = async () => {
     setLoading(true);
-    await Promise.all([fetchProducts(), fetchLogs(1, '')]);
+    await Promise.all([fetchProducts(), fetchLogs(1, '', logTypeFilter)]);
     setLoading(false);
   };
 
@@ -68,23 +70,34 @@ const Inventory = ({ token }) => {
     fetchInventoryData();
   }, []);
 
-  // Re-fetch logs when search or page changes
+  // Re-fetch logs when search, type filter, or page changes
   useEffect(() => {
-    fetchLogs(logsPage, logsSearch);
-  }, [logsPage]);
+    fetchLogs(logsPage, logsSearch, logTypeFilter);
+  }, [logsPage, logTypeFilter]);
 
   // Reset to page 1 when search changes
   const handleLogsSearch = (val) => {
     setLogsSearch(val);
     setLogsPage(1);
-    fetchLogs(1, val);
+    fetchLogs(1, val, logTypeFilter);
+  };
+
+  const handleLogTypeFilterChange = (val) => {
+    setLogTypeFilter(val);
+    setLogsPage(1);
   };
 
   // Client-side filtered + paginated products for Catalog Stock Index
   const filteredProducts = products.filter(p => {
-    if (!stockSearch.trim()) return true;
-    const term = stockSearch.trim().toLowerCase();
-    return p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term);
+    const termMatch = !stockSearch.trim() || 
+      p.name.toLowerCase().includes(stockSearch.trim().toLowerCase()) || 
+      p.sku.toLowerCase().includes(stockSearch.trim().toLowerCase());
+    
+    const statusMatch = stockStatusFilter === 'all' ||
+      (stockStatusFilter === 'critical' && p.inventory <= 10) ||
+      (stockStatusFilter === 'healthy' && p.inventory > 10);
+      
+    return termMatch && statusMatch;
   });
   const stockTotalPages = Math.max(1, Math.ceil(filteredProducts.length / STOCK_PAGE_SIZE));
   const pagedProducts = filteredProducts.slice((stockPage - 1) * STOCK_PAGE_SIZE, stockPage * STOCK_PAGE_SIZE);
@@ -156,17 +169,31 @@ const Inventory = ({ token }) => {
                 <RefreshCw size={12} /> Reload
               </button>
             </div>
-            {/* Search */}
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search by product name or SKU..."
-                value={stockSearch}
-                onChange={e => handleStockSearch(e.target.value)}
-                style={{ paddingLeft: '32px', fontSize: '12px', marginBottom: '0' }}
-              />
+            {/* Search & Filter Row */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: '2', minWidth: '200px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search by product name or SKU..."
+                  value={stockSearch}
+                  onChange={e => handleStockSearch(e.target.value)}
+                  style={{ paddingLeft: '32px', fontSize: '12px', marginBottom: '0' }}
+                />
+              </div>
+              <div style={{ flex: '1', minWidth: '150px' }}>
+                <select
+                  className="form-control"
+                  value={stockStatusFilter}
+                  onChange={e => { setStockStatusFilter(e.target.value); setStockPage(1); }}
+                  style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+                >
+                  <option value="all">All Stock Statuses</option>
+                  <option value="critical">Critical Stock (≤ 10)</option>
+                  <option value="healthy">Healthy Stock (&gt; 10)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -363,17 +390,33 @@ const Inventory = ({ token }) => {
               {logsTotal} total records
             </span>
           </div>
-          {/* Search */}
-          <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search by product name, SKU, or notes..."
-              value={logsSearch}
-              onChange={e => handleLogsSearch(e.target.value)}
-              style={{ paddingLeft: '32px', fontSize: '12px' }}
-            />
+          {/* Search & Filter Row */}
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '2', minWidth: '200px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search by product name, SKU, or notes..."
+                value={logsSearch}
+                onChange={e => handleLogsSearch(e.target.value)}
+                style={{ paddingLeft: '32px', fontSize: '12px', marginBottom: '0' }}
+              />
+            </div>
+            <div style={{ flex: '1', minWidth: '150px' }}>
+              <select
+                className="form-control"
+                value={logTypeFilter}
+                onChange={e => handleLogTypeFilterChange(e.target.value)}
+                style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+              >
+                <option value="all">All Log Types</option>
+                <option value="stock_in">Restock (+ Stock In)</option>
+                <option value="sale">Sale (- Sale)</option>
+                <option value="return">Return (+ Return)</option>
+                <option value="adjustment">Inventory Correction</option>
+              </select>
+            </div>
           </div>
         </div>
 

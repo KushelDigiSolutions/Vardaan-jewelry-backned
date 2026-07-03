@@ -112,6 +112,8 @@ export const checkoutOrder = async (req, res, next) => {
       paymentStatus: 'pending',
       orderStatus: 'pending',
       totalAmount,
+      couponCode: couponCode ? couponCode.toUpperCase() : '',
+      discount,
       tracking: {
         statusHistory: [{ status: 'pending', message: 'Awaiting checkout completion and payment verification' }]
       }

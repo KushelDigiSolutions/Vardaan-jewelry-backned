@@ -327,6 +327,12 @@ export const bulkImportProducts = async (req, res, next) => {
           categoryId = cat._id;
         }
 
+        const resolvedMainImage = item.mainImage || (item.images && item.images.length > 0 ? item.images[0] : '');
+        const imagesList = item.images || ['https://images.unsplash.com/photo-1523275335684-37898b6baf30'];
+        if (resolvedMainImage && !imagesList.includes(resolvedMainImage)) {
+          imagesList.unshift(resolvedMainImage);
+        }
+
         const newProd = await Product.create({
           name: item.name,
           description: item.description || 'No description provided',
@@ -335,8 +341,14 @@ export const bulkImportProducts = async (req, res, next) => {
           sku: item.sku,
           inventory: Number(item.inventory) || 0,
           category: categoryId,
-          images: item.images || ['https://images.unsplash.com/photo-1523275335684-37898b6baf30'],
-          attributes: item.attributes || []
+          images: imagesList,
+          mainImage: resolvedMainImage,
+          wearableMedia: item.wearableMedia || [],
+          isActive: item.isActive !== undefined ? item.isActive : true,
+          isFeatured: item.isFeatured !== undefined ? item.isFeatured : false,
+          attributes: item.attributes || [],
+          variants: item.variants || [],
+          sizes: item.sizes || []
         });
 
         await InventoryLog.create({

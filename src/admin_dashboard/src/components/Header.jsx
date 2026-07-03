@@ -1,9 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Bell, ShieldCheck, Mail, AlertTriangle, CheckCircle, Package } from 'lucide-react';
 
 const Header = ({ currentTab, token }) => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const popoverRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target)
+      ) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const fetchNotifications = async () => {
     try {
@@ -44,12 +66,15 @@ const Header = ({ currentTab, token }) => {
 
   const getTabTitle = () => {
     switch (currentTab) {
-      case 'dashboard': return { title: 'Dashboard Analytics', subtitle: 'Overview of platform performance and operations' };
-      case 'products': return { title: 'Products Catalog', subtitle: 'Manage listings, pricing, and dynamic specifications' };
-      case 'categories': return { title: 'Category Tree', subtitle: 'Organize items in infinite category hierarchies' };
-      case 'orders': return { title: 'Order Fulfillment', subtitle: 'Process user payments, track dispatches, and print labels' };
-      case 'customers': return { title: 'Customer Profiles', subtitle: 'View customer directories and status authorizations' };
-      case 'inventory': return { title: 'Inventory Adjuster', subtitle: 'Audit inventory entries and restock store products' };
+      case 'dashboard': return { title: 'Dashboard Overview', subtitle: 'Overview of platform performance and operations' };
+      case 'products': return { title: 'Products Management', subtitle: 'Manage listings, pricing, and dynamic specifications' };
+      case 'categories': return { title: 'Category Managment', subtitle: 'Organize items in infinite category hierarchies' };
+      case 'orders': return { title: 'Order History', subtitle: 'Process user payments, track dispatches, and print labels' };
+      case 'customers': return { title: 'Customer Data', subtitle: 'View customer directories and status authorizations' };
+      case 'inventory': return { title: 'Inventory Managment', subtitle: 'Audit inventory entries and restock store products' };
+      case 'coupons': return { title: 'Coupons Managment', subtitle: 'Audit Coupons entries and restock store products' };
+      case 'returns': return { title: 'Return Managment', subtitle: 'Audit return requests and restock store products' };
+      case 'contacts': return { title: 'Contacts Management', subtitle: 'Audit contact us entries and restock store products' };
       default: return { title: 'Management Suite', subtitle: 'Admin settings panel' };
     }
   };
@@ -65,6 +90,7 @@ const Header = ({ currentTab, token }) => {
 
       <div className="header-actions" style={{ position: 'relative' }}>
         <button 
+          ref={buttonRef}
           className="btn btn-secondary" 
           onClick={() => setShowNotifications(!showNotifications)}
           style={{ padding: '10px', borderRadius: '50%', position: 'relative' }}
@@ -83,7 +109,7 @@ const Header = ({ currentTab, token }) => {
 
         {/* Notifications Popover Drawer */}
         {showNotifications && (
-          <div className="card" style={{
+          <div ref={popoverRef} className="card" style={{
             position: 'absolute', top: '55px', right: 0, width: '360px', zIndex: 1000,
             padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px',
             maxHeight: '400px', overflowY: 'auto'

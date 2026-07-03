@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, FileSpreadsheet, Download, Edit2, Trash2, X, PlusCircle, MinusCircle } from 'lucide-react';
+import { Search, Plus, FileSpreadsheet, Download, Edit2, Trash2, X, PlusCircle, MinusCircle, FileText } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import {
+  formatProductsForExport,
+  parseImportRows,
+  exportToExcel,
+  exportToCSV,
+  downloadTemplate
+} from '../utils/excelHelper';
 
 const Products = ({ token }) => {
   const [products, setProducts] = useState([]);
@@ -16,10 +24,11 @@ const Products = ({ token }) => {
   // Modals/Pages state
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null); // null means adding new
-
   const [showImportModal, setShowImportModal] = useState(false);
   const [importJson, setImportJson] = useState('');
   const [importStatus, setImportStatus] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -347,6 +356,10 @@ const Products = ({ token }) => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.mainImage) {
+      alert('please upload image on creating product');
+      return;
+    }
     try {
       const url = currentProduct ? `/api/products/${currentProduct._id}` : '/api/products';
       const method = currentProduct ? 'PUT' : 'POST';
@@ -387,15 +400,91 @@ const Products = ({ token }) => {
     }
   };
 
-  const handleBulkExport = () => {
-    // Generate JSON download
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `products_export_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  const handleExport = async (format) => {
+    setExportLoading(true);
+    try {
+      const res = await fetch('/api/products/export', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const productsList = data.data;
+        const timestamp = Date.now();
+        
+        if (format === 'json') {
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(productsList, null, 2));
+          const downloadAnchor = document.createElement('a');
+          downloadAnchor.setAttribute("href", dataStr);
+          downloadAnchor.setAttribute("download", `products_export_${timestamp}.json`);
+          document.body.appendChild(downloadAnchor);
+          downloadAnchor.click();
+          downloadAnchor.remove();
+        } else {
+          const formatted = formatProductsForExport(productsList);
+          if (format === 'csv') {
+            exportToCSV(formatted, `products_export_${timestamp}.csv`);
+          } else {
+            exportToExcel(formatted, `products_export_${timestamp}.xlsx`);
+          }
+        }
+      } else {
+        alert('Failed to export catalog: ' + (data.message || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error fetching catalog for export.');
+    } finally {
+      setExportLoading(false);
+      setShowExportModal(false);
+    }
+  };
+
+  const handleFileImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImportStatus('Reading and parsing file...');
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet);
+
+        if (rawRows.length === 0) {
+          setImportStatus('Error: The uploaded file is empty.');
+          return;
+        }
+
+        setImportStatus(`Parsed ${rawRows.length} rows. Mapping and validating...`);
+        const parsedProducts = parseImportRows(rawRows);
+
+        setImportStatus(`Sending ${parsedProducts.length} products to the database...`);
+        const res = await fetch('/api/products/import', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ products: parsedProducts })
+        });
+        const responseData = await res.json();
+        if (responseData.success) {
+          setImportStatus(`Success: ${responseData.message}`);
+          fetchProducts();
+        } else {
+          setImportStatus(`Import Error: ${responseData.message}`);
+        }
+      } catch (err) {
+        setImportStatus(`Error: ${err.message}`);
+      }
+    };
+    reader.onerror = () => {
+      setImportStatus('Error: Failed to read the file.');
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleBulkImport = async (e) => {
@@ -544,7 +633,7 @@ const Products = ({ token }) => {
 
             {/* Main Product Image Upload Section */}
             <div className="form-group" style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
-              <label style={{ fontWeight: 'bold' }}>Main Product Image</label>
+              <label style={{ fontWeight: 'bold' }}>Main Product Image <span style={{ color: 'var(--danger)' }}>*</span></label>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 10px 0' }}>
                 This is the close-up product image displayed as the primary thumbnail.
               </p>
@@ -957,11 +1046,11 @@ const Products = ({ token }) => {
             <option value="price_desc">Sort: Price High to Low</option>
           </select>
 
-          <button className="btn btn-secondary" onClick={handleBulkExport} title="Export Catalog to JSON">
+          <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} title="Export Catalog to Excel, CSV, or JSON">
             <Download size={16} /> Export
           </button>
           
-          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)} title="Bulk Import via JSON">
+          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)} title="Bulk Import via Excel, CSV, or JSON">
             <FileSpreadsheet size={16} /> Import
           </button>
 
@@ -1061,36 +1150,113 @@ const Products = ({ token }) => {
       {/* Bulk Import Modal */}
       {showImportModal && (
         <div className="modal-backdrop">
-          <div className="modal-content">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
             <div className="modal-header">
-              <h2>Bulk Import Products via JSON</h2>
+              <h2>Bulk Import Products</h2>
               <button className="modal-close" onClick={() => { setShowImportModal(false); setImportStatus(''); }}><X size={20} /></button>
             </div>
-            <form onSubmit={handleBulkImport}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div className="form-group">
-                  <label>Products JSON Array</label>
-                  <textarea
-                    rows={8}
-                    required
-                    className="form-control"
-                    style={{ fontFamily: 'monospace', fontSize: '12px' }}
-                    placeholder={`[\n  {\n    "name": "Cool Sunglasses",\n    "sku": "ACC-SUN-01",\n    "price": 1499,\n    "inventory": 80,\n    "categoryName": "Electronics"\n  }\n]`}
-                    value={importJson}
-                    onChange={(e) => setImportJson(e.target.value)}
-                  />
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Template Download Section */}
+              <div style={{ padding: '12px', border: '1px dashed var(--border-color)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: '600' }}>Download Spreadsheet Template</h4>
+                <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Use these pre-formatted templates to structure your product details correctly before importing.
+                </p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => downloadTemplate('excel')} style={{ fontSize: '12px', padding: '6px 12px' }}>
+                    Download Excel Template (.xlsx)
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => downloadTemplate('csv')} style={{ fontSize: '12px', padding: '6px 12px' }}>
+                    Download CSV Template (.csv)
+                  </button>
                 </div>
-                {importStatus && (
-                  <div style={{ fontSize: '13px', color: 'var(--secondary)', backgroundColor: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
-                    {importStatus}
+              </div>
+
+              {/* File Uploader Section */}
+              <div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>Upload Excel / CSV File</h4>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleFileImport}
+                  className="form-control"
+                  style={{ padding: '8px', cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Collapsible/Fallback Raw JSON paste section */}
+              <details style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px' }}>
+                <summary style={{ cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                  Alternative: Paste JSON Array directly
+                </summary>
+                <form onSubmit={handleBulkImport} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="form-group">
+                    <textarea
+                      rows={6}
+                      required
+                      className="form-control"
+                      style={{ fontFamily: 'monospace', fontSize: '12px', margin: 0 }}
+                      placeholder={`[\n  {\n    "name": "Cool Sunglasses",\n    "sku": "ACC-SUN-01",\n    "price": 1499,\n    "inventory": 80,\n    "categoryName": "Electronics"\n  }\n]`}
+                      value={importJson}
+                      onChange={(e) => setImportJson(e.target.value)}
+                    />
                   </div>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => { setShowImportModal(false); setImportStatus(''); }}>Close</button>
-                <button type="submit" className="btn btn-primary">Process Import</button>
-              </div>
-            </form>
+                  <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end' }}>Process JSON Import</button>
+                </form>
+              </details>
+
+              {importStatus && (
+                <div style={{ fontSize: '13px', color: 'var(--secondary)', backgroundColor: 'rgba(0,0,0,0.05)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid var(--primary)', whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto' }}>
+                  <strong>Status Log:</strong>
+                  <div style={{ marginTop: '4px' }}>{importStatus}</div>
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => { setShowImportModal(false); setImportStatus(''); }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Export Modal */}
+      {showExportModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h2>Export Product Catalog</h2>
+              <button className="modal-close" onClick={() => setShowExportModal(false)}><X size={20} /></button>
+            </div>
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px 0' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
+                Select the format in which you want to export your entire jewelry product catalog.
+              </p>
+              
+              {exportLoading ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                  Exporting catalog data, please wait...
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                  <button type="button" className="btn btn-primary" onClick={() => handleExport('excel')} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                    <FileSpreadsheet size={18} /> Export as Excel Sheet (.xlsx)
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => handleExport('csv')} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={18} /> Export as CSV File (.csv)
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => handleExport('json')} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                    <Download size={18} /> Export as JSON Document (.json)
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowExportModal(false)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

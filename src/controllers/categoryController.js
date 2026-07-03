@@ -3,7 +3,7 @@ import Category from '../models/Category.js';
 // Get all categories
 export const getCategories = async (req, res, next) => {
   try {
-    const categories = await Category.find().populate('parentCategory', 'name slug');
+    const categories = await Category.find().populate('parentCategory', 'name slug').sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: categories });
   } catch (error) {
     next(error);

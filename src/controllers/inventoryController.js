@@ -4,10 +4,15 @@ import Product from '../models/Product.js';
 // Get all inventory logs (Admin only) — supports search and pagination
 export const getInventoryLogs = async (req, res, next) => {
   try {
-    const { search, page = 1, limit = 15 } = req.query;
+    const { search, type, page = 1, limit = 15 } = req.query;
+
+    const query = {};
+    if (type && type !== 'all') {
+      query.type = type;
+    }
 
     // We need to join with product to filter by name/sku, so populate first then filter
-    const allLogs = await InventoryLog.find()
+    const allLogs = await InventoryLog.find(query)
       .populate('product', 'name sku price inventory')
       .sort({ createdAt: -1 });
 

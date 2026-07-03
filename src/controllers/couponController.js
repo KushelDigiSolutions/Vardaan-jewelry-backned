@@ -3,11 +3,51 @@ import Coupon from '../models/Coupon.js';
 // Create a Coupon (Admin Only)
 export const createCoupon = async (req, res, next) => {
   try {
-    const { code, discountType, discountValue, minOrderAmount, expiryDate, isActive, usageLimit } = req.body;
+    const { code, discountType, discountValue, minOrderAmount, startDate, expiryDate, isActive, usageLimit } = req.body;
 
     const couponExists = await Coupon.findOne({ code: code.toUpperCase() });
     if (couponExists) {
       return res.status(400).json({ success: false, message: `Coupon with code ${code} already exists` });
+    }
+
+    // Validation: Discount Value & Type
+    const dVal = Number(discountValue);
+    if (isNaN(dVal) || dVal <= 0) {
+      return res.status(400).json({ success: false, message: 'Discount value must be a valid number greater than 0' });
+    }
+    if (discountType === 'percentage' && (dVal < 1 || dVal > 99)) {
+      return res.status(400).json({ success: false, message: 'Percentage discount must be between 1 and 99' });
+    }
+
+    // Validation: Minimum Order Amount
+    if (minOrderAmount !== undefined && minOrderAmount !== null && minOrderAmount !== '') {
+      const minAmt = Number(minOrderAmount);
+      if (isNaN(minAmt) || minAmt < 0) {
+        return res.status(400).json({ success: false, message: 'Minimum order amount must be 0 or more' });
+      }
+    }
+
+    // Validation: Usage Limit
+    if (usageLimit !== undefined && usageLimit !== null && usageLimit !== '') {
+      const limit = Number(usageLimit);
+      if (isNaN(limit) || limit < 1) {
+        return res.status(400).json({ success: false, message: 'Max usage limit must be 1 or more' });
+      }
+    }
+
+    const now = new Date();
+    const sDate = startDate ? new Date(startDate) : now;
+    const eDate = new Date(expiryDate);
+
+    // Validation: Start Date must be today or in the future
+    // Allow a small 1-minute buffer for client-server clock sync issues
+    if (startDate && new Date(startDate) < new Date(now.getTime() - 60000)) {
+      return res.status(400).json({ success: false, message: 'Start date and time must be today or in the future' });
+    }
+
+    // Validation: Expiry Date must be after Start Date
+    if (eDate <= sDate) {
+      return res.status(400).json({ success: false, message: 'Expiry date must be after the start date' });
     }
 
     const coupon = await Coupon.create({
@@ -15,7 +55,8 @@ export const createCoupon = async (req, res, next) => {
       discountType,
       discountValue: Number(discountValue),
       minOrderAmount: minOrderAmount ? Number(minOrderAmount) : 0,
-      expiryDate: new Date(expiryDate),
+      startDate: sDate,
+      expiryDate: eDate,
       usageLimit: usageLimit ? Number(usageLimit) : null, // null = unlimited
       isActive: isActive !== undefined ? isActive : true
     });
@@ -33,9 +74,13 @@ export const getCoupons = async (req, res, next) => {
     if (req.user && req.user.role === 'admin') {
       coupons = await Coupon.find().sort({ createdAt: -1 });
     } else {
-      // For users: active, not expired, and not usage-exhausted
+      // For users: active, started, not expired, and not usage-exhausted
       const allActive = await Coupon.find({
         isActive: true,
+        $or: [
+          { startDate: { $exists: false } },
+          { startDate: { $lte: new Date() } }
+        ],
         expiryDate: { $gt: new Date() }
       }).sort({ createdAt: -1 });
 
@@ -91,6 +136,15 @@ export const applyCoupon = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'You have already used this coupon code'
+      });
+    }
+
+    // Check if coupon is yet to start
+    const now = new Date();
+    if (coupon.startDate && now < coupon.startDate) {
+      return res.status(400).json({
+        success: false,
+        message: `This coupon is not active yet. It will be available starting ${coupon.startDate.toLocaleString('en-IN')}`
       });
     }
 

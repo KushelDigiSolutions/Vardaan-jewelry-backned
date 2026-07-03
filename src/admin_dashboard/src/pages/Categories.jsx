@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, ShieldCheck, FolderMinus, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldCheck, FolderMinus, RefreshCw, Search, X } from 'lucide-react';
 
 const Categories = ({ token }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Form handling (Dual-mode: Create / Edit)
   const [editingCategory, setEditingCategory] = useState(null); // null means create mode
   const [name, setName] = useState('');
   const [parentCategory, setParentCategory] = useState('');
@@ -13,6 +12,11 @@ const Categories = ({ token }) => {
   const [isActive, setIsActive] = useState(true);
   const [image, setImage] = useState('');
   const [imageUploading, setImageUploading] = useState(false);
+
+  // Search & Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [parentFilter, setParentFilter] = useState('all');
 
   const fetchCategories = async () => {
     setLoading(true);
@@ -137,6 +141,24 @@ const Categories = ({ token }) => {
     }
   };
 
+  const filteredCategories = categories.filter(c => {
+    const term = searchTerm.trim().toLowerCase();
+    const nameMatch = c.name.toLowerCase().includes(term);
+    const slugMatch = (c.slug || '').toLowerCase().includes(term);
+    const matchesSearch = !term || nameMatch || slugMatch;
+
+    const matchesStatus = statusFilter === 'all' ||
+      (statusFilter === 'active' && c.isActive) ||
+      (statusFilter === 'inactive' && !c.isActive);
+
+    const matchesParent = parentFilter === 'all' ||
+      (parentFilter === 'root' && !c.parentCategory) ||
+      (parentFilter === 'sub' && c.parentCategory) ||
+      (c.parentCategory && c.parentCategory._id === parentFilter);
+
+    return matchesSearch && matchesStatus && matchesParent;
+  });
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
       {/* Categories Table View */}
@@ -146,6 +168,61 @@ const Categories = ({ token }) => {
           <button className="btn btn-secondary" onClick={fetchCategories} style={{ padding: '6px 12px', fontSize: '12px' }}>
             <RefreshCw size={12} /> Reload
           </button>
+        </div>
+
+        {/* Search & Filters Row */}
+        <div style={{ padding: '0 24px 16px 24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '2', minWidth: '220px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search category by name or slug..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ paddingLeft: '32px', paddingRight: '32px', fontSize: '12px', marginBottom: '0' }}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{
+                  position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+                  fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px'
+                }}
+                title="Clear Search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div style={{ flex: '1', minWidth: '130px' }}>
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div style={{ flex: '1', minWidth: '140px' }}>
+            <select
+              className="form-control"
+              value={parentFilter}
+              onChange={(e) => setParentFilter(e.target.value)}
+              style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+            >
+              <option value="all">All Levels</option>
+              <option value="root">Root Level</option>
+              <option value="sub">Sub-categories</option>
+            </select>
+          </div>
         </div>
         
         <div className="table-container">
@@ -173,7 +250,7 @@ const Categories = ({ token }) => {
                   </td>
                 </tr>
               ) : (
-                categories.map(c => (
+                filteredCategories.map(c => (
                   <tr key={c._id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

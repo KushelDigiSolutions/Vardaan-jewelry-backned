@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, UserX, RefreshCw, Mail, Edit2, Trash2, X, Eye, MapPin, Calendar, Shield, Home } from 'lucide-react';
+import { Search, UserCheck, UserX, RefreshCw, Mail, Edit2, Trash2, X, Eye, MapPin, Calendar, Shield, Home, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Customers = ({ token }) => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Search & Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
 
   // Edit Customer States
   const [showEditModal, setShowEditModal] = useState(false);
@@ -14,6 +21,10 @@ const Customers = ({ token }) => {
   // View Customer States
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewCustomer, setViewCustomer] = useState(null);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, sortBy]);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -117,13 +128,77 @@ const Customers = ({ token }) => {
     }
   };
 
+  const filteredCustomers = customers
+    .filter(c => {
+      const term = searchTerm.trim().toLowerCase();
+      const matchesSearch = !term || 
+        c.name.toLowerCase().includes(term) || 
+        c.email.toLowerCase().includes(term);
+
+      const matchesStatus = statusFilter === 'all' ||
+        (statusFilter === 'active' && c.isActive) ||
+        (statusFilter === 'suspended' && !c.isActive);
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / PAGE_SIZE));
+  const pagedCustomers = filteredCustomers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div>
-      <div className="toolbar">
-        <h3 className="chart-title" style={{ marginBottom: 0 }}>Registered Customer Directory</h3>
-        <button className="btn btn-secondary" onClick={fetchCustomers}>
-          <RefreshCw size={14} /> Reload
-        </button>
+      <div className="toolbar" style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 className="chart-title" style={{ marginBottom: 0 }}>Registered Customer Directory</h3>
+          <button className="btn btn-secondary" onClick={fetchCustomers}>
+            <RefreshCw size={14} /> Reload Directory
+          </button>
+        </div>
+        
+        {/* Search & Filters Row */}
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '2', minWidth: '240px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search customers by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ paddingLeft: '36px', fontSize: '13px', marginBottom: '0' }}
+            />
+          </div>
+
+          <div style={{ flex: '1', minWidth: '150px' }}>
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ fontSize: '13px', marginBottom: '0', height: '100%' }}
+            >
+              <option value="all">All Account Statuses</option>
+              <option value="active">Active Accounts</option>
+              <option value="suspended">Suspended Accounts</option>
+            </select>
+          </div>
+
+          <div style={{ flex: '1', minWidth: '150px' }}>
+            <select
+              className="form-control"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{ fontSize: '13px', marginBottom: '0', height: '100%' }}
+            >
+              <option value="newest">Joined: Newest First</option>
+              <option value="oldest">Joined: Oldest First</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ padding: '0px' }}>
@@ -153,7 +228,7 @@ const Customers = ({ token }) => {
                   </td>
                 </tr>
               ) : (
-                customers.map(c => (
+                pagedCustomers.map(c => (
                   <tr key={c._id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -192,7 +267,7 @@ const Customers = ({ token }) => {
                       </span>
                     </td>
                     <td>
-                      <span className="badge badge-secondary">{c.addresses?.length || 0} addresses</span>
+                      <span className="badge badge-info">{c.addresses?.length || 0} addresses</span>
                     </td>
                     <td>{new Date(c.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     <td>
@@ -246,6 +321,33 @@ const Customers = ({ token }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderTop: '1px solid var(--border-color)', fontSize: '12px' }}>
+            <span style={{ color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages} ({filteredCustomers.length} customers)
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ===== View Customer Modal ===== */}

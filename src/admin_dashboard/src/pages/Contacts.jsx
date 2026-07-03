@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Mail, Phone, Calendar, X } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Contacts = ({ token }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
   
   // Modal state
   const [activeMessage, setActiveMessage] = useState(null);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedStatus]);
 
   const fetchMessages = async () => {
     setLoading(true);
@@ -77,6 +83,9 @@ const Contacts = ({ token }) => {
     return matchesSearch && matchesStatus;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredMessages.length / PAGE_SIZE));
+  const pagedMessages = filteredMessages.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
       {/* Search and Filters Toolbar */}
@@ -133,7 +142,7 @@ const Contacts = ({ token }) => {
                   </td>
                 </tr>
               ) : (
-                filteredMessages.map(m => (
+                pagedMessages.map(m => (
                   <tr key={m._id} style={{ verticalAlign: 'middle' }}>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -188,6 +197,33 @@ const Contacts = ({ token }) => {
             </tbody>
           </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderTop: '1px solid var(--border-color)', fontSize: '12px', background: 'var(--bg-card)', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+          <span style={{ color: 'var(--text-muted)' }}>
+            Page {page} of {totalPages} ({filteredMessages.length} inquiries)
+          </span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '4px 10px', fontSize: '12px' }}
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '4px 10px', fontSize: '12px' }}
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Message Modal */}
       {activeMessage && (

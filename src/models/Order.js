@@ -49,6 +49,8 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   },
   totalAmount: { type: Number, required: true },
+  couponCode: { type: String, default: '' },
+  discount: { type: Number, default: 0 },
   shiprocketOrderId: { type: String, default: '' },
   shiprocketShipmentId: { type: String, default: '' },
   tracking: {

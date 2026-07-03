@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShoppingBag, Eye, X, Truck, Landmark, RefreshCw } from 'lucide-react';
+import { ShoppingBag, Eye, X, Truck, Landmark, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Orders = ({ token }) => {
   const [orders, setOrders] = useState([]);
@@ -7,6 +7,14 @@ const Orders = ({ token }) => {
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, paymentFilter, methodFilter, startDateFilter, endDateFilter]);
 
   // Selected Order Drawer
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -114,20 +122,45 @@ const Orders = ({ token }) => {
     const paymentMatch = !paymentFilter || o.paymentStatus === paymentFilter;
     const methodMatch = !methodFilter || 
       (methodFilter === 'COD' ? o.paymentMethod === 'COD' : o.paymentMethod !== 'COD');
-    return statusMatch && paymentMatch && methodMatch;
+    
+    let dateMatch = true;
+    if (startDateFilter || endDateFilter) {
+      const orderDate = new Date(o.createdAt);
+      if (startDateFilter) {
+        const start = new Date(startDateFilter);
+        start.setHours(0, 0, 0, 0);
+        if (orderDate < start) dateMatch = false;
+      }
+      if (endDateFilter) {
+        const end = new Date(endDateFilter);
+        end.setHours(23, 59, 59, 999);
+        if (orderDate > end) dateMatch = false;
+      }
+    }
+    
+    return statusMatch && paymentMatch && methodMatch && dateMatch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+  const pagedOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div>
       {/* Toolbar filters */}
-      <div className="toolbar">
-        <h3 className="chart-title" style={{ marginBottom: 0 }}>Fulfillment Orders Log</h3>
+      <div className="toolbar" style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 className="chart-title" style={{ marginBottom: 0 }}>Fulfillment Orders Log</h3>
+          <button className="btn btn-secondary" onClick={fetchOrders}>
+            <RefreshCw size={14} /> Reload Log
+          </button>
+        </div>
         
-        <div className="filters-wrapper">
+        <div className="filters-wrapper" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
           <select
             className="form-control"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
           >
             <option value="">All Fulfillment Statuses</option>
             <option value="pending">Pending</option>
@@ -141,6 +174,7 @@ const Orders = ({ token }) => {
             className="form-control"
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
+            style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
           >
             <option value="">All Payment Statuses</option>
             <option value="pending">Pending Payment</option>
@@ -153,15 +187,44 @@ const Orders = ({ token }) => {
             className="form-control"
             value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)}
+            style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
           >
             <option value="">All Payment Methods</option>
             <option value="COD">Cash on Delivery (COD)</option>
             <option value="Online">Online Payment</option>
           </select>
 
-          <button className="btn btn-secondary" onClick={fetchOrders}>
-            <RefreshCw size={14} /> Reload Log
-          </button>
+          {/* Date Range Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '2', minWidth: '320px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Date Range:</span>
+            <input
+              type="date"
+              className="form-control"
+              value={startDateFilter}
+              onChange={(e) => setStartDateFilter(e.target.value)}
+              style={{ fontSize: '12px', marginBottom: 0 }}
+              title="Start Date"
+            />
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>to</span>
+            <input
+              type="date"
+              className="form-control"
+              value={endDateFilter}
+              onChange={(e) => setEndDateFilter(e.target.value)}
+              style={{ fontSize: '12px', marginBottom: 0 }}
+              title="End Date"
+            />
+            {(startDateFilter || endDateFilter) && (
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }}
+                style={{ padding: '6px 10px', fontSize: '11px' }}
+              >
+                Clear Date
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -195,7 +258,7 @@ const Orders = ({ token }) => {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map(o => (
+                pagedOrders.map(o => (
                   <tr key={o._id}>
                     <td style={{ fontWeight: 'bold', fontSize: '12px' }}>#{o._id.substring(18)}</td>
                     <td style={{ fontSize: '13px' }}>{new Date(o.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
@@ -233,6 +296,33 @@ const Orders = ({ token }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderTop: '1px solid var(--border-color)', fontSize: '12px' }}>
+            <span style={{ color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages} ({filteredOrders.length} orders)
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Selected Order Detailed Drawer Modal */}
@@ -279,6 +369,7 @@ const Orders = ({ token }) => {
                 <table className="custom-table" style={{ fontSize: '13px' }}>
                   <thead>
                     <tr>
+                      <th style={{ width: '60px' }}>Image</th>
                       <th>Product Title</th>
                       <th>SKU</th>
                       <th>Quantity</th>
@@ -289,6 +380,37 @@ const Orders = ({ token }) => {
                   <tbody>
                     {selectedOrder.items.map((item, idx) => (
                       <tr key={idx}>
+                        <td>
+                          {item.product?.images?.[0] ? (
+                            <img 
+                              src={item.product.images[0]} 
+                              alt={item.name} 
+                              style={{ 
+                                width: '40px', 
+                                height: '40px', 
+                                objectFit: 'cover', 
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-color)' 
+                              }} 
+                            />
+                          ) : (
+                            <div 
+                              style={{ 
+                                width: '40px', 
+                                height: '40px', 
+                                backgroundColor: 'rgba(255,255,255,0.05)', 
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '10px',
+                                color: 'var(--text-muted)'
+                              }}
+                            >
+                              N/A
+                            </div>
+                          )}
+                        </td>
                         <td>{item.name}</td>
                         <td style={{ fontFamily: 'monospace' }}>{item.product?.sku || 'N/A'}</td>
                         <td>{item.quantity}</td>
@@ -299,14 +421,41 @@ const Orders = ({ token }) => {
                       </tr>
                     ))}
                     <tr style={{ borderTop: '2px solid var(--border-color)' }}>
-                      <td colSpan={3}></td>
-                      <td style={{ color: 'var(--text-muted)' }}>Shipping Cost:</td>
+                      <td colSpan={4}></td>
+                      <td style={{ color: 'var(--text-muted)' }}>Items Subtotal:</td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                        ₹{selectedOrder.shippingCost.toLocaleString('en-IN')}
+                        ₹{selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString('en-IN')}
                       </td>
                     </tr>
                     <tr>
-                      <td colSpan={3}></td>
+                      <td colSpan={4}></td>
+                      <td style={{ color: 'var(--text-muted)' }}>Shipping Cost:</td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                        ₹{(selectedOrder.shippingCost || 0).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                    {(() => {
+                      const itemsSubtotal = selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                      const expectedTotal = itemsSubtotal + (selectedOrder.shippingCost || 0);
+                      const calculatedDiscount = Math.max(0, expectedTotal - selectedOrder.totalAmount);
+                      
+                      if (calculatedDiscount > 0) {
+                        return (
+                          <tr>
+                            <td colSpan={4}></td>
+                            <td style={{ color: 'var(--success)', fontWeight: '500' }}>
+                              Discount Applied {selectedOrder.couponCode ? `(${selectedOrder.couponCode})` : '(Promo/Coupon)'}:
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--success)' }}>
+                              -₹{calculatedDiscount.toLocaleString('en-IN')}
+                            </td>
+                          </tr>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <tr>
+                      <td colSpan={4}></td>
                       <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Grand Total:</td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--primary)', fontSize: '15px' }}>
                         ₹{selectedOrder.totalAmount.toLocaleString('en-IN')}
