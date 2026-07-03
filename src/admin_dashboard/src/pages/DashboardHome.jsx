@@ -71,13 +71,13 @@ const DashboardHome = ({ token, onViewChange }) => {
         // Fallback chart data if empty
         if (formattedChart.length === 0) {
           setChartData([
-            { date: 'Jun 14', Sales: 12000 },
-            { date: 'Jun 15', Sales: 18500 },
-            { date: 'Jun 16', Sales: 15000 },
-            { date: 'Jun 17', Sales: 32000 },
-            { date: 'Jun 18', Sales: 28000 },
-            { date: 'Jun 19', Sales: 45000 },
-            { date: 'Jun 20', Sales: totalRevenue || 74999 }
+            { date: 'Jun 14', Sales: 0 },
+            { date: 'Jun 15', Sales: 0 },
+            { date: 'Jun 16', Sales: 0 },
+            { date: 'Jun 17', Sales: 0 },
+            { date: 'Jun 18', Sales: 0 },
+            { date: 'Jun 19', Sales: 0 },
+            { date: 'Jun 20', Sales: totalRevenue || 0 }
           ]);
         } else {
           setChartData(formattedChart);
@@ -109,7 +109,7 @@ const DashboardHome = ({ token, onViewChange }) => {
           <div className="metric-info">
             <span className="metric-label">Total Revenue</span>
             <span className="metric-val">₹{stats.revenue.toLocaleString('en-IN')}</span>
-            <span className="metric-change up">+12.4% vs last month</span>
+            {/* <span className="metric-change up">+12.4% vs last month</span> */}
           </div>
           <div className="metric-icon purple">
             <IndianRupee size={24} />
@@ -120,7 +120,7 @@ const DashboardHome = ({ token, onViewChange }) => {
           <div className="metric-info">
             <span className="metric-label">Total Orders</span>
             <span className="metric-val">{stats.ordersCount}</span>
-            <span className="metric-change up">+8.2% vs last month</span>
+            {/* <span className="metric-change up">+8.2% vs last month</span> */}
           </div>
           <div className="metric-icon cyan">
             <ShoppingBag size={24} />
@@ -144,7 +144,7 @@ const DashboardHome = ({ token, onViewChange }) => {
           <div className="metric-info">
             <span className="metric-label">Registered Customers</span>
             <span className="metric-val">{stats.customersCount}</span>
-            <span className="metric-change up">+18% new users</span>
+            {/* <span className="metric-change up">+18% new users</span> */}
           </div>
           <div className="metric-icon green">
             <Users size={24} />
@@ -229,7 +229,7 @@ const DashboardHome = ({ token, onViewChange }) => {
               <tr>
                 <th>Order ID</th>
                 <th>Date</th>
-                <th>Client</th>
+                <th>Customer Name</th>
                 <th>Payment</th>
                 <th>Order Status</th>
                 <th>Total Value</th>

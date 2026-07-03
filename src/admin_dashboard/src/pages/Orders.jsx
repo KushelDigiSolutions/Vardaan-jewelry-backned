@@ -162,7 +162,7 @@ const Orders = ({ token }) => {
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
           >
-            <option value="">All Fulfillment Statuses</option>
+            <option value="">All Status</option>
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
             <option value="shipped">Shipped</option>
@@ -176,7 +176,7 @@ const Orders = ({ token }) => {
             onChange={(e) => setPaymentFilter(e.target.value)}
             style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
           >
-            <option value="">All Payment Statuses</option>
+            <option value="">All Payment Status</option>
             <option value="pending">Pending Payment</option>
             <option value="paid">Paid</option>
             <option value="failed">Failed</option>
@@ -196,7 +196,7 @@ const Orders = ({ token }) => {
 
           {/* Date Range Filters */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '2', minWidth: '320px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Date Range:</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>From:</span>
             <input
               type="date"
               className="form-control"
@@ -236,7 +236,7 @@ const Orders = ({ token }) => {
               <tr>
                 <th>Order ID</th>
                 <th>Placement Date</th>
-                <th>Client Customer</th>
+                <th>Customer Name</th>
                 <th>Items Qty</th>
                 <th>Payment Status</th>
                 <th>Order Status</th>

@@ -181,7 +181,7 @@ const Customers = ({ token }) => {
               onChange={(e) => setStatusFilter(e.target.value)}
               style={{ fontSize: '13px', marginBottom: '0', height: '100%' }}
             >
-              <option value="all">All Account Statuses</option>
+              <option value="all">All Account Status</option>
               <option value="active">Active Accounts</option>
               <option value="suspended">Suspended Accounts</option>
             </select>
