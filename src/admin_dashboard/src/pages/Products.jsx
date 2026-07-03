@@ -42,7 +42,8 @@ const Products = ({ token }) => {
   const [newAttrVal, setNewAttrVal] = useState('');
   const [newSize, setNewSize] = useState({
     size: '',
-    price: ''
+    price: '',
+    inventory: ''
   });
   const [newVariant, setNewVariant] = useState({
     karat: '18Kt Gold',
@@ -232,7 +233,8 @@ const Products = ({ token }) => {
     }
     const newSizesList = sizes.map(sizeVal => ({
       size: sizeVal,
-      price: newSize.price !== '' ? Number(newSize.price) : null
+      price: newSize.price !== '' ? Number(newSize.price) : null,
+      inventory: newSize.inventory !== '' ? Number(newSize.inventory) : 0
     }));
     setFormData({
       ...formData,
@@ -243,7 +245,8 @@ const Products = ({ token }) => {
     });
     setNewSize({
       size: '',
-      price: ''
+      price: '',
+      inventory: ''
     });
   };
 
@@ -693,15 +696,16 @@ const Products = ({ token }) => {
             <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
               <label style={{ fontWeight: 'bold' }}>Product Sizes & Custom Pricing</label>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 12px 0' }}>
-                Specify sizes and optional custom prices. Leave the price field blank to fall back to the base product price.
+                Specify sizes, optional custom prices, and per-size stock quantity. Leave price blank to use the base product price. Leave stock blank for unlimited (uses main stock).
               </p>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
                 <input
                   type="text"
                   className="form-control"
                   placeholder="Size (e.g. XL, 14, 16)"
                   value={newSize.size}
                   onChange={(e) => setNewSize({ ...newSize, size: e.target.value })}
+                  style={{ minWidth: '120px', flex: '1' }}
                 />
                 <input
                   type="number"
@@ -709,16 +713,27 @@ const Products = ({ token }) => {
                   placeholder="Price (₹) - Optional"
                   value={newSize.price}
                   onChange={(e) => setNewSize({ ...newSize, price: e.target.value })}
+                  style={{ minWidth: '120px', flex: '1' }}
+                />
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder="Qty / Stock (e.g. 10)"
+                  value={newSize.inventory}
+                  onChange={(e) => setNewSize({ ...newSize, inventory: e.target.value })}
+                  style={{ minWidth: '120px', flex: '1' }}
                 />
                 <button type="button" className="btn btn-secondary" onClick={handleAddSize} style={{ padding: '12px' }}>
-                  Add Size Option
+                  Add Size
                 </button>
               </div>
               
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {formData.sizes && formData.sizes.map((s, idx) => (
                   <span key={idx} className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 10px', fontSize: '12px', backgroundColor: 'rgba(7, 81, 46, 0.1)', border: '1px solid rgba(7, 81, 46, 0.2)', color: 'var(--text-dark)' }}>
-                    Size: <strong>{s.size}</strong> {s.price ? `(₹${s.price})` : '(Default Price)'}
+                    Size: <strong>{s.size}</strong>
+                    {s.price ? ` ₹${s.price}` : ' (Default Price)'}
+                    {' | Stock: '}<strong style={{ color: s.inventory > 0 ? 'var(--success)' : 'var(--danger)' }}>{s.inventory > 0 ? s.inventory : '∞'}</strong>
                     <MinusCircle size={14} style={{ cursor: 'pointer', color: 'var(--danger)' }} onClick={() => handleRemoveSize(idx)} />
                   </span>
                 ))}

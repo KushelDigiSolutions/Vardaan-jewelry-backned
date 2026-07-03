@@ -8,18 +8,21 @@ const couponSchema = new mongoose.Schema({
   expiryDate: { type: Date, required: true },
   usageLimit: { type: Number, default: null }, // null = unlimited
   usedCount: { type: Number, default: 0 },
+  usedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 // Check if coupon is valid
-couponSchema.methods.isValid = function (orderAmount) {
+couponSchema.methods.isValid = function (orderAmount, userId = null) {
   const now = new Date();
   const withinUsageLimit = this.usageLimit === null || this.usedCount < this.usageLimit;
+  const notUsedByUser = !userId || !this.usedBy || !this.usedBy.some(id => id.toString() === userId.toString());
   return (
     this.isActive &&
     now <= this.expiryDate &&
     orderAmount >= this.minOrderAmount &&
-    withinUsageLimit
+    withinUsageLimit &&
+    notUsedByUser
   );
 };
 

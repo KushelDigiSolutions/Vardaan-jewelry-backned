@@ -80,15 +80,16 @@ export const checkoutOrder = async (req, res, next) => {
     let discount = 0;
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true });
-      if (coupon && coupon.isValid(totalAmount)) {
-        if (coupon.discountType === 'percentage') {
-          discount = (coupon.discountValue / 100) * totalAmount;
-        } else {
-          discount = coupon.discountValue;
-        }
-        discount = Math.min(discount, totalAmount);
-        totalAmount = Math.max(0, totalAmount - discount);
+      if (!coupon || !coupon.isValid(totalAmount, req.user._id)) {
+        return res.status(400).json({ success: false, message: 'Coupon is invalid, expired, or has already been used' });
       }
+      if (coupon.discountType === 'percentage') {
+        discount = (coupon.discountValue / 100) * totalAmount;
+      } else {
+        discount = coupon.discountValue;
+      }
+      discount = Math.min(discount, totalAmount);
+      totalAmount = Math.max(0, totalAmount - discount);
     }
 
     // Configure shipping cost
@@ -122,7 +123,7 @@ export const checkoutOrder = async (req, res, next) => {
 
     // Increment coupon usage count after successful order creation
     if (couponCode) {
-      await incrementCouponUsage(couponCode);
+      await incrementCouponUsage(couponCode, req.user._id);
     }
 
     // Auto-register COD orders in Shiprocket immediately

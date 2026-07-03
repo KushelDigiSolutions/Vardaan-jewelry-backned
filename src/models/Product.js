@@ -42,7 +42,8 @@ const productSchema = new mongoose.Schema({
   sizes: [
     {
       size: { type: String, required: true },
-      price: { type: Number, default: null }
+      price: { type: Number, default: null },
+      inventory: { type: Number, default: 0 }  // per-size stock quantity
     }
   ],
   reviews: [

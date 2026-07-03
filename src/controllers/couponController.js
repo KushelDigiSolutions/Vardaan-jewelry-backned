@@ -39,8 +39,12 @@ export const getCoupons = async (req, res, next) => {
         expiryDate: { $gt: new Date() }
       }).sort({ createdAt: -1 });
 
-      // Filter out coupons that have hit their usage limit
-      coupons = allActive.filter(c => c.usageLimit === null || c.usedCount < c.usageLimit);
+      // Filter out coupons that have hit their usage limit or have been used by the current user
+      coupons = allActive.filter(c => {
+        const withinLimit = c.usageLimit === null || c.usedCount < c.usageLimit;
+        const notUsedByUser = !c.usedBy || !c.usedBy.some(id => id.toString() === req.user._id.toString());
+        return withinLimit && notUsedByUser;
+      });
     }
     res.status(200).json({ success: true, data: coupons });
   } catch (error) {
@@ -82,7 +86,15 @@ export const applyCoupon = async (req, res, next) => {
       });
     }
 
-    if (!coupon.isValid(Number(orderAmount))) {
+    // Check if user has already used this coupon
+    if (coupon.usedBy && coupon.usedBy.some(id => id.toString() === req.user._id.toString())) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already used this coupon code'
+      });
+    }
+
+    if (!coupon.isValid(Number(orderAmount), req.user._id)) {
       return res.status(400).json({ 
         success: false, 
         message: 'Coupon is either expired, inactive, or your cart total is below the minimum limit' 
@@ -118,12 +130,22 @@ export const applyCoupon = async (req, res, next) => {
 };
 
 // Increment Coupon usage count after successful order (called internally from orderController)
-export const incrementCouponUsage = async (code) => {
+export const incrementCouponUsage = async (code, userId) => {
   try {
     const coupon = await Coupon.findOne({ code: code.toUpperCase() });
     if (!coupon) return;
 
     coupon.usedCount += 1;
+
+    // Add user to usedBy list
+    if (userId) {
+      if (!coupon.usedBy) {
+        coupon.usedBy = [];
+      }
+      if (!coupon.usedBy.some(id => id.toString() === userId.toString())) {
+        coupon.usedBy.push(userId);
+      }
+    }
 
     // Auto-deactivate if usage limit reached
     if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {

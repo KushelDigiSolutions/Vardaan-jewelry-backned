@@ -132,7 +132,7 @@ export const verifyPayment = async (req, res, next) => {
     for (const item of order.items) {
       const prod = await Product.findById(item.product);
       if (prod) {
-        // Handle variant inventory if variantDetails is defined
+        // Handle variant inventory if variantDetails is defined (full variant: karat+color+size)
         if (item.variantDetails && prod.variants && prod.variants.length > 0) {
           const vIndex = prod.variants.findIndex(v =>
             v.size === item.variantDetails.size &&
@@ -146,6 +146,15 @@ export const verifyPayment = async (req, res, next) => {
             prod.variants[vIndex].inventory = Math.max(0, prod.variants[vIndex].inventory - item.quantity);
           }
         }
+
+        // Handle size-only inventory decrement (sizes array)
+        if (!item.variantDetails && item.variant && prod.sizes && prod.sizes.length > 0) {
+          const sIndex = prod.sizes.findIndex(s => s.size === item.variant);
+          if (sIndex > -1 && prod.sizes[sIndex].inventory > 0) {
+            prod.sizes[sIndex].inventory = Math.max(0, prod.sizes[sIndex].inventory - item.quantity);
+          }
+        }
+
         prod.inventory = Math.max(0, prod.inventory - item.quantity);
         await prod.save();
 
