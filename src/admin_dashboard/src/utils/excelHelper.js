@@ -19,6 +19,11 @@ export const formatProductsForExport = (products) => {
       .filter(img => img !== mainImg)
       .join(', ');
 
+    // wearableMedia formatting
+    const wearableMediaStr = (p.wearableMedia || [])
+      .map(media => `${media.mediaType || 'image'}:${media.url}`)
+      .join(' | ');
+
     return {
       SKU: p.sku || '',
       Name: p.name || '',
@@ -31,6 +36,7 @@ export const formatProductsForExport = (products) => {
       SecondaryImages: secImgs,
       Attributes: attrsStr,
       Sizes: sizesStr,
+      WearableMedia: wearableMediaStr,
       IsActive: p.isActive !== false ? 'TRUE' : 'FALSE'
     };
   });
@@ -121,6 +127,30 @@ export const parseImportRows = (rows) => {
       ? (String(isActiveRaw).toUpperCase() === 'TRUE' || String(isActiveRaw) === '1' || isActiveRaw === true)
       : true;
 
+    // Wearable Media parsing
+    const wearableMediaStr = String(row.WearableMedia || row.wearablemedia || row.wearableMedia || '').trim();
+    const wearableMedia = [];
+    if (wearableMediaStr) {
+      const parts = wearableMediaStr.split('|');
+      parts.forEach(part => {
+        const colonIndex = part.indexOf(':');
+        if (colonIndex !== -1) {
+          const rawMediaType = part.substring(0, colonIndex).trim().toLowerCase();
+          const url = part.substring(colonIndex + 1).trim();
+          if (url) {
+            const mediaType = (rawMediaType === 'video' || rawMediaType === 'image') ? rawMediaType : 'image';
+            wearableMedia.push({ url, mediaType });
+          }
+        } else {
+          const url = part.trim();
+          if (url) {
+            const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(url);
+            wearableMedia.push({ url, mediaType: isVideo ? 'video' : 'image' });
+          }
+        }
+      });
+    }
+
     return {
       sku,
       name,
@@ -133,6 +163,7 @@ export const parseImportRows = (rows) => {
       images,
       attributes,
       sizes,
+      wearableMedia,
       isActive
     };
   });
@@ -187,6 +218,7 @@ export const downloadTemplate = (format = 'excel') => {
       SecondaryImages: 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9, https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f',
       Attributes: 'Metal Type:Gold | Purity:18Kt',
       Sizes: '12:45000:10 | 14::15',
+      WearableMedia: 'image:https://images.unsplash.com/photo-1573408301185-9146fe634ad0 | video:https://www.w3schools.com/html/mov_bbb.mp4',
       IsActive: 'TRUE'
     }
   ];
