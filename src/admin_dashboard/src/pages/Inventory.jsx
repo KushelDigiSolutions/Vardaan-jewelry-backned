@@ -189,7 +189,7 @@ const Inventory = ({ token }) => {
                   onChange={e => { setStockStatusFilter(e.target.value); setStockPage(1); }}
                   style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
                 >
-                  <option value="all">All Stock Statuses</option>
+                  <option value="all">All Stock Status</option>
                   <option value="critical">Critical Stock (≤ 10)</option>
                   <option value="healthy">Healthy Stock (&gt; 10)</option>
                 </select>

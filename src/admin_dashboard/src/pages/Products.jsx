@@ -737,7 +737,7 @@ const Products = ({ token }) => {
               </div>
             </div>
 
-            <div className="form-group">
+            {/* <div className="form-group">
               <label>Fallback Media Image URLs (comma separated)</label>
               <input
                 type="text"
@@ -746,7 +746,7 @@ const Products = ({ token }) => {
                 value={formData.images}
                 onChange={(e) => setFormData({ ...formData, images: e.target.value })}
               />
-            </div>
+            </div> */}
 
             {/* Attributes Section */}
             <div className="form-group">

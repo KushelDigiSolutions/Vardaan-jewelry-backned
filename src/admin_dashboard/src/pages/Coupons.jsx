@@ -247,7 +247,7 @@ const Coupons = ({ token }) => {
       {/* Coupon List Card */}
       <div className="card" style={{ padding: '0px' }}>
         <div style={{ padding: '24px 24px 12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 className="chart-title" style={{ marginBottom: 0 }}>Active Promotional Campaigns</h3>
+          <h3 className="chart-title" style={{ marginBottom: 0 }}>Active Offers & Coupons</h3>
           <button className="btn btn-secondary" onClick={fetchCoupons} style={{ padding: '6px 12px', fontSize: '12px' }}>
             <RefreshCw size={12} /> Reload
           </button>
