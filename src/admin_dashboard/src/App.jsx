@@ -60,7 +60,7 @@ function App() {
         return <Inventory token={token} />;
       case 'coupons':
         return <Coupons token={token} />;
-      case 'returns':
+      case 'replace':
         return <Returns token={token} />;
       case 'contacts':
         return <Contacts token={token} />;

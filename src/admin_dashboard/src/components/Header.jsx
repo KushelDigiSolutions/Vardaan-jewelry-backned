@@ -73,7 +73,7 @@ const Header = ({ currentTab, token }) => {
       case 'customers': return { title: 'Customer Data', subtitle: 'View customer directories and status authorizations' };
       case 'inventory': return { title: 'Inventory Managment', subtitle: 'Audit inventory entries and restock store products' };
       case 'coupons': return { title: 'Coupons Managment', subtitle: 'Audit Coupons entries and restock store products' };
-      case 'returns': return { title: 'Return Managment', subtitle: 'Audit return requests and restock store products' };
+      case 'replace': return { title: 'Replacement Managment', subtitle: 'Audit replacement requests and restock store products' };
       case 'contacts': return { title: 'Contacts Management', subtitle: 'Audit contact us entries and restock store products' };
       case 'hero': return { title: 'HeroSlider Management', subtitle: 'Audit HeroSlider entries and restock store products' };
       default: return { title: 'Management Suite', subtitle: 'Admin settings panel' };

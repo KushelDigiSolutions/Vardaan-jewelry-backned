@@ -218,7 +218,7 @@ const Returns = ({ token }) => {
             {/* Modal Header */}
             <div style={{
               display: 'flex',
-              justifyContent: 'between',
+              // justifyContent: 'between',
               alignItems: 'center',
               padding: '15px 20px',
               borderBottom: '1px solid #eee',

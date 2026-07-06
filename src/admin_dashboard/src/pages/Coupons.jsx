@@ -1,11 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { Percent, Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Percent, Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 const Coupons = ({ token }) => {
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
+
+  // Search & Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [minCartFilter, setMinCartFilter] = useState('');
+  const [sortBy, setSortBy] = useState('default');
+
+  const handleSearchChange = (val) => {
+    setSearchTerm(val);
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (val) => {
+    setStatusFilter(val);
+    setPage(1);
+  };
+
+  const handleMinCartFilterChange = (val) => {
+    setMinCartFilter(val);
+    setPage(1);
+  };
 
   // Form States
   const [code, setCode] = useState('');
@@ -169,8 +190,56 @@ const Coupons = ({ token }) => {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(coupons.length / PAGE_SIZE));
-  const pagedCoupons = coupons.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Filter and search coupons
+  const filteredCoupons = coupons.filter(coupon => {
+    // 1. Search term match (Coupon Code)
+    const matchesSearch = !searchTerm.trim() || 
+      coupon.code.toLowerCase().includes(searchTerm.trim().toLowerCase());
+
+    // 2. Status match
+    const expired = new Date(coupon.expiryDate) <= new Date();
+    const limitReached = coupon.usageLimit !== null && coupon.usageLimit !== undefined && (coupon.usedCount ?? 0) >= coupon.usageLimit;
+    const notStarted = coupon.startDate && new Date(coupon.startDate) > new Date();
+
+    let status = 'valid';
+    if (limitReached) {
+      status = 'limit_reached';
+    } else if (expired || !coupon.isActive) {
+      status = 'expired';
+    } else if (notStarted) {
+      status = 'scheduled';
+    }
+
+    const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+    // 3. Minimum Cart match (shows coupons with minOrderAmount <= minCartFilter)
+    const matchesMinCart = !minCartFilter || coupon.minOrderAmount <= Number(minCartFilter);
+
+    return matchesSearch && matchesStatus && matchesMinCart;
+  });
+
+  // Sort coupons
+  const sortedCoupons = [...filteredCoupons].sort((a, b) => {
+    if (sortBy === 'code') {
+      return a.code.localeCompare(b.code);
+    }
+    if (sortBy === 'discountDesc') {
+      return b.discountValue - a.discountValue;
+    }
+    if (sortBy === 'expirySoonest') {
+      return new Date(a.expiryDate) - new Date(b.expiryDate);
+    }
+    if (sortBy === 'minCartAsc') {
+      return a.minOrderAmount - b.minOrderAmount;
+    }
+    if (sortBy === 'minCartDesc') {
+      return b.minOrderAmount - a.minOrderAmount;
+    }
+    return 0; // default order
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredCoupons.length / PAGE_SIZE));
+  const pagedCoupons = sortedCoupons.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
@@ -182,6 +251,63 @@ const Coupons = ({ token }) => {
           <button className="btn btn-secondary" onClick={fetchCoupons} style={{ padding: '6px 12px', fontSize: '12px' }}>
             <RefreshCw size={12} /> Reload
           </button>
+        </div>
+
+        {/* Search & Filter Row */}
+        <div style={{ padding: '0px 24px 16px 24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '2', minWidth: '200px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by coupon code..."
+              value={searchTerm}
+              onChange={e => handleSearchChange(e.target.value)}
+              style={{ paddingLeft: '32px', fontSize: '12px', marginBottom: '0' }}
+            />
+          </div>
+          
+          <div style={{ flex: '1', minWidth: '130px' }}>
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={e => handleStatusFilterChange(e.target.value)}
+              style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+            >
+              <option value="all">All Status</option>
+              <option value="valid">Valid</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="expired">Expired</option>
+              <option value="limit_reached">Limit Reached</option>
+            </select>
+          </div>
+
+          <div style={{ flex: '1', minWidth: '130px' }}>
+            <input
+              type="number"
+              className="form-control"
+              placeholder="Max Min-Cart (₹)..."
+              value={minCartFilter}
+              onChange={e => handleMinCartFilterChange(e.target.value)}
+              style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+            />
+          </div>
+
+          <div style={{ flex: '1', minWidth: '130px' }}>
+            <select
+              className="form-control"
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+              style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+            >
+              <option value="default">Default Order</option>
+              <option value="code">Code (A-Z)</option>
+              <option value="discountDesc">Discount (High-Low)</option>
+              <option value="expirySoonest">Expiry (Soonest)</option>
+              <option value="minCartAsc">Min Cart (Low-High)</option>
+              <option value="minCartDesc">Min Cart (High-Low)</option>
+            </select>
+          </div>
         </div>
 
         <div className="table-container">
@@ -205,10 +331,13 @@ const Coupons = ({ token }) => {
                     Loading active coupons...
                   </td>
                 </tr>
-              ) : coupons.length === 0 ? (
+              ) : filteredCoupons.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                    No promotional coupons created.
+                    {coupons.length === 0 
+                      ? 'No promotional coupons created.' 
+                      : 'No coupons match your search and filter criteria.'
+                    }
                   </td>
                 </tr>
               ) : (
@@ -267,7 +396,7 @@ const Coupons = ({ token }) => {
         {totalPages > 1 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderTop: '1px solid var(--border-color)', fontSize: '12px' }}>
             <span style={{ color: 'var(--text-muted)' }}>
-              Page {page} of {totalPages} ({coupons.length} coupons)
+              Page {page} of {totalPages} ({filteredCoupons.length} coupons)
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button

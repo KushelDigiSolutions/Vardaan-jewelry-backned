@@ -10,7 +10,7 @@ const Sidebar = ({ currentTab, onTabChange, adminUser, onLogout }) => {
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'inventory', label: 'Inventory', icon: Database },
     { id: 'coupons', label: 'Coupons', icon: Percent },
-    { id: 'returns', label: 'Returns', icon: RefreshCw },
+    { id: 'replace', label: 'Replacement', icon: RefreshCw },
     { id: 'contacts', label: 'Contact Inquiries', icon: Mail }
   ];
 
