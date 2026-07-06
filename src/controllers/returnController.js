@@ -6,10 +6,23 @@ import Notification from '../models/Notification.js';
 import { sendEmail } from '../utils/email.js';
 import { getReturnRequestedEmailTemplate, getReturnStatusUpdateEmailTemplate } from '../utils/emailTemplates.js';
 
-// Request return (Customer)
+// Request return/replacement (Customer)
 export const requestReturn = async (req, res, next) => {
   try {
-    const { orderId, items, refundMethod, refundDetails } = req.body;
+    const { orderId, reason, description } = req.body;
+    let items = req.body.items;
+
+    if (typeof items === 'string') {
+      try {
+        items = JSON.parse(items);
+      } catch (err) {
+        return res.status(400).json({ success: false, message: 'Invalid items format' });
+      }
+    }
+
+    if (!orderId || !items || !reason || !description) {
+      return res.status(400).json({ success: false, message: 'Missing required fields (orderId, items, reason, description)' });
+    }
 
     const order = await Order.findById(orderId);
     if (!order) {
@@ -18,11 +31,11 @@ export const requestReturn = async (req, res, next) => {
 
     // Auth check
     if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized to request return for this order' });
+      return res.status(403).json({ success: false, message: 'Not authorized to request replacement for this order' });
     }
 
     if (order.orderStatus !== 'delivered') {
-      return res.status(400).json({ success: false, message: 'Returns can only be requested after order has been delivered' });
+      return res.status(400).json({ success: false, message: 'Replacements can only be requested after order has been delivered' });
     }
 
     // Verify returning items belong to order and quantities are valid
@@ -33,7 +46,7 @@ export const requestReturn = async (req, res, next) => {
         return res.status(400).json({ success: false, message: `Product ${item.name} not found in this order` });
       }
       if (item.quantity > orderItem.quantity) {
-        return res.status(400).json({ success: false, message: `Returned quantity exceeds ordered quantity for ${item.name}` });
+        return res.status(400).json({ success: false, message: `Replacement quantity exceeds ordered quantity for ${item.name}` });
       }
 
       returnItems.push({
@@ -41,31 +54,36 @@ export const requestReturn = async (req, res, next) => {
         name: orderItem.name,
         quantity: Number(item.quantity),
         price: orderItem.price,
-        reason: item.reason || 'Product wrong size/defective'
+        reason: item.reason || reason
       });
     }
 
-    // Refund details validations
-    if (refundMethod === 'upi' && !refundDetails.upiId) {
-      return res.status(400).json({ success: false, message: 'UPI ID is required for UPI refunds' });
+    // File validation: must upload at least 1 photo and 1 video
+    if (!req.files || !req.files.photos || req.files.photos.length === 0) {
+      return res.status(400).json({ success: false, message: 'At least 1 photo must be uploaded for replacement request' });
     }
-    if (refundMethod === 'bank' && (!refundDetails.accountNo || !refundDetails.ifsc || !refundDetails.bankName || !refundDetails.holderName)) {
-      return res.status(400).json({ success: false, message: 'Complete Bank Details are required for Bank refunds' });
+    if (!req.files || !req.files.videos || req.files.videos.length === 0) {
+      return res.status(400).json({ success: false, message: 'At least 1 video must be uploaded for replacement request' });
     }
+
+    const photoUrls = req.files.photos.map(file => file.path);
+    const videoUrls = req.files.videos.map(file => file.path);
 
     const returnRequest = await ReturnRequest.create({
       order: orderId,
       user: req.user._id,
       items: returnItems,
-      refundMethod,
-      refundDetails,
+      reason,
+      description,
+      photos: photoUrls,
+      videos: videoUrls,
       status: 'pending'
     });
 
     // Alert Admin
     await Notification.create({
-      title: 'New Return Request',
-      message: `Return requested for Order #${orderId} by customer ${req.user.name}`
+      title: 'New Replacement Request',
+      message: `Replacement requested for Order #${orderId} by customer ${req.user.name}`
     });
 
     // Send email to customer
@@ -73,21 +91,21 @@ export const requestReturn = async (req, res, next) => {
       const emailHtml = getReturnRequestedEmailTemplate(order, returnRequest, req.user.name);
       await sendEmail({
         to: req.user.email,
-        subject: `Vardaan - Return Request Received for Order #${order._id}`,
+        subject: `Vardaan - Replacement Request Received for Order #${order._id}`,
         html: emailHtml,
-        text: `Hello ${req.user.name}, we have received your return request for Order #${order._id}. Status: PENDING.`
+        text: `Hello ${req.user.name}, we have received your replacement request for Order #${order._id}. Status: PENDING.`
       });
     } catch (emailErr) {
-      console.error('Error sending return confirmation email:', emailErr);
+      console.error('Error sending replacement confirmation email:', emailErr);
     }
 
-    res.status(201).json({ success: true, message: 'Return request submitted successfully', data: returnRequest });
+    res.status(201).json({ success: true, message: 'Replacement request submitted successfully', data: returnRequest });
   } catch (error) {
     next(error);
   }
 };
 
-// List Return Requests (Admin: all, Customer: theirs)
+// List Return/Replacement Requests (Admin: all, Customer: theirs)
 export const getReturns = async (req, res, next) => {
   try {
     let returns;
@@ -107,19 +125,19 @@ export const getReturns = async (req, res, next) => {
   }
 };
 
-// Update Return Status (Admin: Approve/Reject/Refund)
+// Update Return/Replacement Status (Admin: Approve/Reject/Replace)
 export const updateReturnStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, adminNotes } = req.body; // approved, rejected, refunded
+    const { status, adminNotes } = req.body; // approved, rejected, replaced
 
     const returnReq = await ReturnRequest.findById(id).populate('user', 'name email').populate('order');
     if (!returnReq) {
-      return res.status(404).json({ success: false, message: 'Return request not found' });
+      return res.status(404).json({ success: false, message: 'Replacement request not found' });
     }
 
-    if (returnReq.status === 'refunded' || returnReq.status === 'rejected') {
-      return res.status(400).json({ success: false, message: `Return request is already ${returnReq.status}` });
+    if (returnReq.status === 'replaced' || returnReq.status === 'rejected') {
+      return res.status(400).json({ success: false, message: `Replacement request is already ${returnReq.status}` });
     }
 
     const previousStatus = returnReq.status;
@@ -128,7 +146,7 @@ export const updateReturnStatus = async (req, res, next) => {
 
     await returnReq.save();
 
-    // If approved, restore stock inventory
+    // If approved, restore stock inventory or adjust logs
     if (status === 'approved' && previousStatus !== 'approved') {
       for (const item of returnReq.items) {
         const prod = await Product.findById(item.product);
@@ -140,31 +158,31 @@ export const updateReturnStatus = async (req, res, next) => {
             product: prod._id,
             change: item.quantity,
             type: 'return',
-            notes: `Stock returned from approved Return Request #${returnReq._id}`
+            notes: `Stock returned for replacement from approved Request #${returnReq._id}`
           });
         }
       }
 
       await Notification.create({
         user: returnReq.user._id,
-        title: 'Return Request Approved',
-        message: `Your return request for Order #${returnReq.order} has been approved. Refund is being processed.`
+        title: 'Replacement Request Approved',
+        message: `Your replacement request for Order #${returnReq.order} has been approved.`
       });
     }
 
-    if (status === 'refunded') {
+    if (status === 'replaced') {
       await Notification.create({
         user: returnReq.user._id,
-        title: 'Refund Processed',
-        message: `Refund of ₹${returnReq.items.reduce((sum, i) => sum + (i.price * i.quantity), 0)} has been processed to your requested ${returnReq.refundMethod === 'upi' ? 'UPI' : 'Bank Account'}.`
+        title: 'Replacement Processed',
+        message: `Replacement items for Order #${returnReq.order} have been processed and dispatched.`
       });
     }
 
     if (status === 'rejected') {
       await Notification.create({
         user: returnReq.user._id,
-        title: 'Return Request Rejected',
-        message: `Your return request for Order #${returnReq.order} has been rejected. Details: ${adminNotes || 'Contact support.'}`
+        title: 'Replacement Request Rejected',
+        message: `Your replacement request for Order #${returnReq.order} has been rejected. Details: ${adminNotes || 'Contact support.'}`
       });
     }
 
@@ -173,39 +191,48 @@ export const updateReturnStatus = async (req, res, next) => {
       const emailHtml = getReturnStatusUpdateEmailTemplate(returnReq.order, returnReq, returnReq.user.name);
       await sendEmail({
         to: returnReq.user.email,
-        subject: `Vardaan - Return Request Status Update for Order #${returnReq.order._id}`,
+        subject: `Vardaan - Replacement Request Status Update for Order #${returnReq.order._id}`,
         html: emailHtml,
-        text: `Hello ${returnReq.user.name}, the status of your return request for Order #${returnReq.order._id} has been updated to "${status}".`
+        text: `Hello ${returnReq.user.name}, the status of your replacement request for Order #${returnReq.order._id} has been updated to "${status}".`
       });
     } catch (emailErr) {
-      console.error('Error sending return status update email:', emailErr);
+      console.error('Error sending status update email:', emailErr);
     }
 
-    res.status(200).json({ success: true, message: `Return request status updated to ${status}`, data: returnReq });
+    res.status(200).json({ success: true, message: `Replacement request status updated to ${status}`, data: returnReq });
   } catch (error) {
     next(error);
   }
 };
 
-// Update return request (Customer)
+// Update return/replacement request (Customer)
 export const updateReturn = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { items, refundMethod, refundDetails } = req.body;
+    const { reason, description } = req.body;
+    let items = req.body.items;
+
+    if (typeof items === 'string') {
+      try {
+        items = JSON.parse(items);
+      } catch (err) {
+        return res.status(400).json({ success: false, message: 'Invalid items format' });
+      }
+    }
 
     const returnRequest = await ReturnRequest.findById(id);
     if (!returnRequest) {
-      return res.status(404).json({ success: false, message: 'Return request not found' });
+      return res.status(404).json({ success: false, message: 'Replacement request not found' });
     }
 
     // Auth check
     if (returnRequest.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized to update this return request' });
+      return res.status(403).json({ success: false, message: 'Not authorized to update this replacement request' });
     }
 
     // Status check - only pending returns can be edited
     if (returnRequest.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Only pending return requests can be modified' });
+      return res.status(400).json({ success: false, message: 'Only pending replacement requests can be modified' });
     }
 
     const order = await Order.findById(returnRequest.order);
@@ -214,36 +241,40 @@ export const updateReturn = async (req, res, next) => {
     }
 
     // Verify returning items belong to order and quantities are valid
-    const returnItems = [];
-    for (const item of items) {
-      const orderItem = order.items.find(o => o.product.toString() === item.productId);
-      if (!orderItem) {
-        return res.status(400).json({ success: false, message: `Product ${item.name} not found in this order` });
+    if (items) {
+      const returnItems = [];
+      for (const item of items) {
+        const orderItem = order.items.find(o => o.product.toString() === item.productId);
+        if (!orderItem) {
+          return res.status(400).json({ success: false, message: `Product ${item.name} not found in this order` });
+        }
+        if (item.quantity > orderItem.quantity) {
+          return res.status(400).json({ success: false, message: `Replacement quantity exceeds ordered quantity for ${item.name}` });
+        }
+
+        returnItems.push({
+          product: item.productId,
+          name: orderItem.name,
+          quantity: Number(item.quantity),
+          price: orderItem.price,
+          reason: item.reason || reason || returnRequest.reason
+        });
       }
-      if (item.quantity > orderItem.quantity) {
-        return res.status(400).json({ success: false, message: `Returned quantity exceeds ordered quantity for ${item.name}` });
+      returnRequest.items = returnItems;
+    }
+
+    if (reason) returnRequest.reason = reason;
+    if (description) returnRequest.description = description;
+
+    // Handle files if uploaded
+    if (req.files) {
+      if (req.files.photos && req.files.photos.length > 0) {
+        returnRequest.photos = req.files.photos.map(file => file.path);
       }
-
-      returnItems.push({
-        product: item.productId,
-        name: orderItem.name,
-        quantity: Number(item.quantity),
-        price: orderItem.price,
-        reason: item.reason || 'Product wrong size/defective'
-      });
+      if (req.files.videos && req.files.videos.length > 0) {
+        returnRequest.videos = req.files.videos.map(file => file.path);
+      }
     }
-
-    // Refund details validations
-    if (refundMethod === 'upi' && !refundDetails.upiId) {
-      return res.status(400).json({ success: false, message: 'UPI ID is required for UPI refunds' });
-    }
-    if (refundMethod === 'bank' && (!refundDetails.accountNo || !refundDetails.ifsc || !refundDetails.bankName || !refundDetails.holderName)) {
-      return res.status(400).json({ success: false, message: 'Complete Bank Details are required for Bank refunds' });
-    }
-
-    returnRequest.items = returnItems;
-    returnRequest.refundMethod = refundMethod;
-    returnRequest.refundDetails = refundDetails;
 
     await returnRequest.save();
 
@@ -252,15 +283,15 @@ export const updateReturn = async (req, res, next) => {
       const emailHtml = getReturnRequestedEmailTemplate(order, returnRequest, req.user.name);
       await sendEmail({
         to: req.user.email,
-        subject: `Vardaan - Return Request Updated for Order #${order._id}`,
+        subject: `Vardaan - Replacement Request Updated for Order #${order._id}`,
         html: emailHtml,
-        text: `Hello ${req.user.name}, your return request for Order #${order._id} has been updated.`
+        text: `Hello ${req.user.name}, your replacement request for Order #${order._id} has been updated.`
       });
     } catch (emailErr) {
-      console.error('Error sending return update email:', emailErr);
+      console.error('Error sending replacement update email:', emailErr);
     }
 
-    res.status(200).json({ success: true, message: 'Return request updated successfully', data: returnRequest });
+    res.status(200).json({ success: true, message: 'Replacement request updated successfully', data: returnRequest });
   } catch (error) {
     next(error);
   }

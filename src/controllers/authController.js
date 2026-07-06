@@ -453,12 +453,16 @@ export const removeAvatar = async (req, res, next) => {
   }
 };
 
-// Delete Account
+// Delete Account (Deactivate/Suspend Account)
 export const deleteAccount = async (req, res, next) => {
   try {
-    await User.findByIdAndDelete(req.user._id);
-    await Cart.findOneAndDelete({ user: req.user._id });
-    res.status(200).json({ success: true, message: 'User account removed successfully' });
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    user.isActive = false;
+    await user.save();
+    res.status(200).json({ success: true, message: 'User account deactivated/suspended successfully' });
   } catch (error) {
     next(error);
   }

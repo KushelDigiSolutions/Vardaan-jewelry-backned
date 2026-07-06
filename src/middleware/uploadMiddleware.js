@@ -30,17 +30,28 @@ const upload = multer({
 // Custom middleware to upload to Cloudinary
 const uploadToCloudinary = async (req, res, next) => {
   try {
-    // Standardize req.file to req.files if upload.single was used
-    if (req.file && (!req.files || req.files.length === 0)) {
-      req.files = [req.file];
+    let filesArray = [];
+    let isFieldsObject = false;
+
+    if (req.files) {
+      if (Array.isArray(req.files)) {
+        filesArray = req.files;
+      } else if (typeof req.files === 'object') {
+        isFieldsObject = true;
+        filesArray = Object.values(req.files).flat();
+      }
     }
 
-    if (!req.files || req.files.length === 0) {
+    if (req.file && filesArray.length === 0) {
+      filesArray = [req.file];
+    }
+
+    if (filesArray.length === 0) {
       return next();
     }
 
     // Upload each file to Cloudinary
-    const uploadPromises = req.files.map((file) => {
+    const uploadPromises = filesArray.map((file) => {
       return new Promise((resolve, reject) => {
         const isVideo = file.mimetype.startsWith('video/');
         const uploadOptions = {
@@ -70,13 +81,27 @@ const uploadToCloudinary = async (req, res, next) => {
 
     const results = await Promise.all(uploadPromises);
 
-    // Transform results to match expected format
-    req.files = results.map((result) => ({
+    // Transform results to match expected format, preserving the field name
+    const uploadedFiles = results.map((result, idx) => ({
       path: result.secure_url,
       filename: result.public_id,
       size: result.bytes,
-      mimetype: result.resource_type
+      mimetype: result.resource_type,
+      fieldname: filesArray[idx].fieldname
     }));
+
+    if (isFieldsObject) {
+      const newFilesObj = {};
+      uploadedFiles.forEach((file) => {
+        if (!newFilesObj[file.fieldname]) {
+          newFilesObj[file.fieldname] = [];
+        }
+        newFilesObj[file.fieldname].push(file);
+      });
+      req.files = newFilesObj;
+    } else {
+      req.files = uploadedFiles;
+    }
 
     next();
   } catch (error) {

@@ -5,24 +5,20 @@ const returnedItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   quantity: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true },
-  reason: { type: String, default: 'Defective product / wrong variant size' }
+  reason: { type: String, default: '' }
 }, { _id: false });
 
 const returnRequestSchema = new mongoose.Schema({
   order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   items: [returnedItemSchema],
-  refundMethod: { type: String, enum: ['upi', 'bank'], required: true },
-  refundDetails: {
-    upiId: { type: String, default: '' },
-    accountNo: { type: String, default: '' },
-    bankName: { type: String, default: '' },
-    ifsc: { type: String, default: '' },
-    holderName: { type: String, default: '' }
-  },
+  reason: { type: String, required: true },
+  description: { type: String, required: true },
+  photos: [{ type: String }], // Cloudinary URLs of the uploaded photos
+  videos: [{ type: String }], // Cloudinary URLs of the uploaded videos
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'refunded'],
+    enum: ['pending', 'approved', 'rejected', 'replaced'],
     default: 'pending'
   },
   adminNotes: { type: String, default: '' }

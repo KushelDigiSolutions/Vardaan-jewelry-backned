@@ -371,8 +371,8 @@ export const getOrderPlacedEmailTemplate = (order) => {
   `;
 };
 
-export const getReturnRequestedEmailTemplate = (order, returnRequest, name) => {
-  const itemsHtml = returnRequest.items.map(item => `
+export const getReturnRequestedEmailTemplate = (order, replacementRequest, name) => {
+  const itemsHtml = replacementRequest.items.map(item => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
@@ -385,7 +385,7 @@ export const getReturnRequestedEmailTemplate = (order, returnRequest, name) => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Vardaan Return Request Received</title>
+      <title>Vardaan Replacement Request Received</title>
       <style>
         body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
         .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
@@ -411,22 +411,23 @@ export const getReturnRequestedEmailTemplate = (order, returnRequest, name) => {
       <div class="container">
         <div class="header">
           <h1>VARDAAN</h1>
-          <p>Return Request Confirmation</p>
+          <p>Replacement Request Confirmation</p>
         </div>
         <div class="content">
           <p class="greeting">Dear ${name || 'Customer'},</p>
-          <p class="lead-text">We have received your return request for Order <b>#${order._id}</b>. Our concierge team is currently reviewing your ticket. Here are the details of the return request:</p>
+          <p class="lead-text">We have received your replacement request for Order <b>#${order._id}</b>. Our concierge team is currently reviewing your ticket. Here are the details of the request:</p>
           
           <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
             <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
-            <tr><td style="color: #8C7547;"><strong>Return Status:</strong></td><td style="text-align: right; color: #b7791f; font-weight: bold; text-transform: uppercase;">${returnRequest.status}</td></tr>
-            <tr><td style="color: #8C7547;"><strong>Refund Method:</strong></td><td style="text-align: right; color: #303030; text-transform: uppercase;">${returnRequest.refundMethod}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Request Status:</strong></td><td style="text-align: right; color: #b7791f; font-weight: bold; text-transform: uppercase;">${replacementRequest.status}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Reason:</strong></td><td style="text-align: right; color: #303030;">${replacementRequest.reason}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Description:</strong></td><td style="text-align: right; color: #303030;">${replacementRequest.description}</td></tr>
           </table>
 
           <table class="items-table">
             <thead>
               <tr>
-                <th style="text-align: left;">Returning Jewelry Item</th>
+                <th style="text-align: left;">Replacement Jewelry Item</th>
                 <th style="text-align: center; width: 60px;">Qty</th>
                 <th style="text-align: right; width: 100px;">Price</th>
               </tr>
@@ -436,7 +437,7 @@ export const getReturnRequestedEmailTemplate = (order, returnRequest, name) => {
             </tbody>
           </table>
 
-          <p class="lead-text" style="margin-top: 30px;">Our team typically reviews requests within 1-2 business days. You will receive an email update once the return is approved or processed.</p>
+          <p class="lead-text" style="margin-top: 30px;">Our team typically reviews requests within 1–2 business days. You will receive an email update once the replacement is approved or updated.</p>
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
@@ -449,8 +450,8 @@ export const getReturnRequestedEmailTemplate = (order, returnRequest, name) => {
   `;
 };
 
-export const getReturnStatusUpdateEmailTemplate = (order, returnRequest, name) => {
-  const itemsHtml = returnRequest.items.map(item => `
+export const getReturnStatusUpdateEmailTemplate = (order, replacementRequest, name) => {
+  const itemsHtml = replacementRequest.items.map(item => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
@@ -458,14 +459,14 @@ export const getReturnStatusUpdateEmailTemplate = (order, returnRequest, name) =
     </tr>
   `).join('');
 
-  const statusColor = returnRequest.status === 'approved' || returnRequest.status === 'refunded' ? '#07512E' : returnRequest.status === 'rejected' ? '#c53030' : '#b7791f';
+  const statusColor = replacementRequest.status === 'approved' || replacementRequest.status === 'replaced' ? '#07512E' : replacementRequest.status === 'rejected' ? '#c53030' : '#b7791f';
 
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Vardaan Return Request Update</title>
+      <title>Vardaan Replacement Request Update</title>
       <style>
         body { font-family: 'Garamond', 'Georgia', 'Times New Roman', serif; background-color: #FAF9F6; margin: 0; padding: 20px; }
         .container { max-width: 580px; background: #ffffff; border: 1px solid #E5DCC5; border-radius: 8px; margin: 0 auto; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.03); }
@@ -492,16 +493,16 @@ export const getReturnStatusUpdateEmailTemplate = (order, returnRequest, name) =
       <div class="container">
         <div class="header">
           <h1>VARDAAN</h1>
-          <p>Return Status Update</p>
+          <p>Replacement Status Update</p>
         </div>
         <div class="content">
           <p class="greeting">Dear ${name || 'Customer'},</p>
-          <p class="lead-text">There has been an update regarding your return request for Order <b>#${order._id}</b>.</p>
+          <p class="lead-text">There has been an update regarding your replacement request for Order <b>#${order._id}</b>.</p>
           
           <div class="status-box">
-            <div class="status-title">Return Status: ${returnRequest.status}</div>
+            <div class="status-title">Status: ${replacementRequest.status}</div>
             <p class="status-desc">
-              ${returnRequest.adminNotes ? `Admin Notes: "${returnRequest.adminNotes}"` : `Your return request status has been updated to "${returnRequest.status}".`}
+              ${replacementRequest.adminNotes ? `Admin Notes: "${replacementRequest.adminNotes}"` : `Your request status has been updated to "${replacementRequest.status}".`}
             </p>
           </div>
 
@@ -518,7 +519,7 @@ export const getReturnStatusUpdateEmailTemplate = (order, returnRequest, name) =
             </tbody>
           </table>
 
-          <p class="lead-text" style="margin-top: 30px;">For any questions, feel free to contact our concierge support desk.</p>
+          <p class="lead-text" style="margin-top: 30px;">For any questions, feel free to contact our support desk.</p>
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
