@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, ShieldCheck, FolderMinus, RefreshCw, Search, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldCheck, FolderMinus, RefreshCw, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Categories = ({ token }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const [editingCategory, setEditingCategory] = useState(null); // null means create mode
   const [name, setName] = useState('');
@@ -17,6 +19,10 @@ const Categories = ({ token }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [parentFilter, setParentFilter] = useState('all');
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, parentFilter]);
 
   const fetchCategories = async () => {
     setLoading(true);
@@ -86,6 +92,16 @@ const Categories = ({ token }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (imageUploading) {
+      alert('Please wait for the image to finish uploading.');
+      return;
+    }
+    if (!image) {
+      alert('Category image banner is mandatory. Please upload an image.');
+      return;
+    }
+
     try {
       const url = editingCategory ? `/api/categories/${editingCategory._id}` : '/api/categories';
       const method = editingCategory ? 'PUT' : 'POST';
@@ -158,6 +174,9 @@ const Categories = ({ token }) => {
 
     return matchesSearch && matchesStatus && matchesParent;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / PAGE_SIZE));
+  const pagedCategories = filteredCategories.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
@@ -250,7 +269,7 @@ const Categories = ({ token }) => {
                   </td>
                 </tr>
               ) : (
-                filteredCategories.map(c => (
+                pagedCategories.map(c => (
                   <tr key={c._id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -302,6 +321,32 @@ const Categories = ({ token }) => {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderTop: '1px solid var(--border-color)', fontSize: '12px' }}>
+            <span style={{ color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages} ({filteredCategories.length} categories)
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Categories Creation Form */}
@@ -363,9 +408,9 @@ const Categories = ({ token }) => {
           </div>
 
           <div className="form-group" style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
-            <label style={{ fontWeight: 'bold' }}>Category Image Banner</label>
+            <label style={{ fontWeight: 'bold' }}>Category Image Banner <span style={{ color: 'red' }}>*</span></label>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 10px 0' }}>
-              Choose a representative photo for this category (highly recommended for homepage display).
+              Choose a representative photo for this category (required for saving category).
             </p>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
