@@ -22,6 +22,7 @@ const Orders = ({ token }) => {
   const [shippingCarrier, setShippingCarrier] = useState('Delhivery');
   const [actionLoading, setActionLoading] = useState(false);
   const [tempStatus, setTempStatus] = useState('');
+  const [tempPaymentStatus, setTempPaymentStatus] = useState('');
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -53,6 +54,7 @@ const Orders = ({ token }) => {
       if (data.success) {
         setSelectedOrder(data.data);
         setTempStatus(data.data.orderStatus);
+        setTempPaymentStatus(data.data.paymentStatus);
         setShowDetailModal(true);
       }
     } catch (err) {
@@ -77,6 +79,34 @@ const Orders = ({ token }) => {
 
       if (data.success) {
         alert(`Order status updated to ${newStatus}`);
+        handleOpenDetails(selectedOrder._id); // Reload details
+        fetchOrders(); // Reload list
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePaymentStatusChange = async (newPaymentStatus) => {
+    if (!selectedOrder) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${selectedOrder._id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ paymentStatus: newPaymentStatus })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alert(`Payment status updated to ${newPaymentStatus}`);
         handleOpenDetails(selectedOrder._id); // Reload details
         fetchOrders(); // Reload list
       } else {
@@ -470,13 +500,16 @@ const Orders = ({ token }) => {
                 {/* 1. Status controls */}
                 <div className="card" style={{ padding: '16px' }}>
                   <h4 style={{ marginBottom: '12px', fontSize: '14px' }}>Modify Order State</h4>
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label>Fulfillment Stage</label>
+                  
+                  {/* Fulfillment Status Select */}
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)' }}>Fulfillment Stage</label>
                     <select
                       className="form-control"
                       value={tempStatus}
                       disabled={actionLoading}
                       onChange={(e) => setTempStatus(e.target.value)}
+                      style={{ marginBottom: 0 }}
                     >
                       <option value="pending">Pending</option>
                       <option value="confirmed">Confirmed</option>
@@ -487,11 +520,37 @@ const Orders = ({ token }) => {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      style={{ marginTop: '8px', justifyContent: 'center' }}
+                      style={{ marginTop: '4px', justifyContent: 'center' }}
                       disabled={actionLoading || tempStatus === selectedOrder.orderStatus}
                       onClick={() => handleStatusChange(tempStatus)}
                     >
-                      Confirm Status Update
+                      Update Fulfillment Status
+                    </button>
+                  </div>
+
+                  {/* Payment Status Select */}
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)' }}>Payment Status</label>
+                    <select
+                      className="form-control"
+                      value={tempPaymentStatus}
+                      disabled={actionLoading}
+                      onChange={(e) => setTempPaymentStatus(e.target.value)}
+                      style={{ marginBottom: 0 }}
+                    >
+                      <option value="pending">Pending Payment</option>
+                      <option value="paid">Paid</option>
+                      <option value="failed">Failed</option>
+                      <option value="refunded">Refunded</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ marginTop: '4px', justifyContent: 'center' }}
+                      disabled={actionLoading || tempPaymentStatus === selectedOrder.paymentStatus}
+                      onClick={() => handlePaymentStatusChange(tempPaymentStatus)}
+                    >
+                      Update Payment Status
                     </button>
                   </div>
                 </div>

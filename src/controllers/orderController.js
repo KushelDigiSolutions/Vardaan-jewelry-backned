@@ -215,70 +215,50 @@ export const getOrderById = async (req, res, next) => {
 // Update Order Status (Admin)
 export const updateOrderStatus = async (req, res, next) => {
   try {
-    const { orderStatus } = req.body;
+    const { orderStatus, paymentStatus } = req.body;
     const order = await Order.findById(req.params.id).populate('user', 'name email');
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    if (order.orderStatus === orderStatus) {
-      return res.status(400).json({ success: false, message: 'Order is already in this state' });
+    let isModified = false;
+
+    // 1. Handle Payment Status Update
+    if (paymentStatus && order.paymentStatus !== paymentStatus) {
+      order.paymentStatus = paymentStatus;
+      isModified = true;
+
+      // Record in statusHistory
+      order.tracking.statusHistory.push({
+        status: order.orderStatus,
+        message: `Payment status updated to: ${paymentStatus.toUpperCase()}`
+      });
+
+      // User Notification
+      await Notification.create({
+        user: order.user._id,
+        title: `Payment update: ${paymentStatus.toUpperCase()}`,
+        message: `Payment status for order #${order._id} is now ${paymentStatus}.`
+      });
     }
 
-    const previousStatus = order.orderStatus;
-    order.orderStatus = orderStatus;
+    // 2. Handle Order Status Update
+    if (orderStatus && order.orderStatus !== orderStatus) {
+      isModified = true;
+      const previousStatus = order.orderStatus;
+      order.orderStatus = orderStatus;
 
-    // Record tracking update message
-    let statusMessage = `Order status updated to ${orderStatus}`;
-    if (orderStatus === 'confirmed') {
-      statusMessage = 'Order payment confirmed. Preparing for package shipment.';
-      
-      // DECREMENT inventory on confirmation (if not already done)
-      for (const item of order.items) {
-        const prod = await Product.findById(item.product);
-        if (prod) {
-          prod.inventory = Math.max(0, prod.inventory - item.quantity);
-          if (item.variantDetails && prod.variants && prod.variants.length > 0) {
-            const vIndex = prod.variants.findIndex(v => 
-              v.size === item.variantDetails.size &&
-              v.karat === item.variantDetails.karat &&
-              v.metalColor === item.variantDetails.metalColor &&
-              (v.metalType || '') === (item.variantDetails.metalType || '') &&
-              (v.grossWeight || '') === (item.variantDetails.grossWeight || '') &&
-              (v.netWeight || '') === (item.variantDetails.netWeight || '')
-            );
-            if (vIndex > -1) {
-              prod.variants[vIndex].inventory = Math.max(0, prod.variants[vIndex].inventory - item.quantity);
-            }
-          }
-          await prod.save();
-
-          await InventoryLog.create({
-            product: prod._id,
-            change: -item.quantity,
-            type: 'sale',
-            notes: `Stock subtracted for Order #${order._id}`
-          });
-
-          // Check for Low Stock warnings
-          if (prod.inventory <= 10) {
-            await Notification.create({
-              title: 'Low Stock Alert',
-              message: `Product "${prod.name}" (SKU: ${prod.sku}) has only ${prod.inventory} units remaining!`,
-            });
-          }
-        }
-      }
-    } else if (orderStatus === 'cancelled' && previousStatus !== 'cancelled') {
-      statusMessage = 'Order has been cancelled.';
-      
-      // RESTORE inventory if order was already confirmed/shipped
-      if (previousStatus === 'confirmed' || previousStatus === 'shipped') {
+      // Record tracking update message
+      let statusMessage = `Order status updated to ${orderStatus}`;
+      if (orderStatus === 'confirmed') {
+        statusMessage = 'Order payment confirmed. Preparing for package shipment.';
+        
+        // DECREMENT inventory on confirmation (if not already done)
         for (const item of order.items) {
           const prod = await Product.findById(item.product);
           if (prod) {
-            prod.inventory += item.quantity;
+            prod.inventory = Math.max(0, prod.inventory - item.quantity);
             if (item.variantDetails && prod.variants && prod.variants.length > 0) {
               const vIndex = prod.variants.findIndex(v => 
                 v.size === item.variantDetails.size &&
@@ -289,49 +269,97 @@ export const updateOrderStatus = async (req, res, next) => {
                 (v.netWeight || '') === (item.variantDetails.netWeight || '')
               );
               if (vIndex > -1) {
-                prod.variants[vIndex].inventory += item.quantity;
+                prod.variants[vIndex].inventory = Math.max(0, prod.variants[vIndex].inventory - item.quantity);
               }
             }
             await prod.save();
 
             await InventoryLog.create({
               product: prod._id,
-              change: item.quantity,
-              type: 'return',
-              notes: `Stock returned from cancelled Order #${order._id}`
+              change: -item.quantity,
+              type: 'sale',
+              notes: `Stock subtracted for Order #${order._id}`
             });
+
+            // Check for Low Stock warnings
+            if (prod.inventory <= 10) {
+              await Notification.create({
+                title: 'Low Stock Alert',
+                message: `Product "${prod.name}" (SKU: ${prod.sku}) has only ${prod.inventory} units remaining!`,
+              });
+            }
+          }
+        }
+      } else if (orderStatus === 'cancelled' && previousStatus !== 'cancelled') {
+        statusMessage = 'Order has been cancelled.';
+        
+        // RESTORE inventory if order was already confirmed/shipped
+        if (previousStatus === 'confirmed' || previousStatus === 'shipped') {
+          for (const item of order.items) {
+            const prod = await Product.findById(item.product);
+            if (prod) {
+              prod.inventory += item.quantity;
+              if (item.variantDetails && prod.variants && prod.variants.length > 0) {
+                const vIndex = prod.variants.findIndex(v => 
+                  v.size === item.variantDetails.size &&
+                  v.karat === item.variantDetails.karat &&
+                  v.metalColor === item.variantDetails.metalColor &&
+                  (v.metalType || '') === (item.variantDetails.metalType || '') &&
+                  (v.grossWeight || '') === (item.variantDetails.grossWeight || '') &&
+                  (v.netWeight || '') === (item.variantDetails.netWeight || '')
+                );
+                if (vIndex > -1) {
+                  prod.variants[vIndex].inventory += item.quantity;
+                }
+              }
+              await prod.save();
+
+              await InventoryLog.create({
+                product: prod._id,
+                change: item.quantity,
+                type: 'return',
+                notes: `Stock returned from cancelled Order #${order._id}`
+              });
+            }
           }
         }
       }
+
+      order.tracking.statusHistory.push({
+        status: orderStatus,
+        message: statusMessage
+      });
+
+      // Trigger Notification & Email
+      await Notification.create({
+        user: order.user._id,
+        title: `Order Status: ${orderStatus.toUpperCase()}`,
+        message: `Your order #${order._id} is now ${orderStatus}.`
+      });
+
+      try {
+        const emailHtml = orderStatus === 'confirmed' 
+          ? getInvoiceEmailTemplate(order)
+          : getStatusUpdateEmailTemplate(order, `Order Status: ${orderStatus.toUpperCase()}`, statusMessage);
+
+        await sendEmail({
+          to: order.user.email,
+          subject: orderStatus === 'confirmed' 
+            ? `Invoice for Order #${order._id} - Vardaan Store` 
+            : `Order #${order._id} Status Update: ${orderStatus.toUpperCase()}`,
+          text: `Hello ${order.user.name},\n\nYour order #${order._id} status is now: ${orderStatus}.\nUpdate Details: ${statusMessage}\n\nThank you for shopping with us!`,
+          html: emailHtml
+        });
+      } catch (err) {
+        console.error("Email sending failed during order status update:", err);
+      }
     }
 
-    order.tracking.statusHistory.push({
-      status: orderStatus,
-      message: statusMessage
-    });
+    if (!isModified) {
+      return res.status(400).json({ success: false, message: 'No updates provided or values already match current state' });
+    }
 
     await order.save();
-
-    // Trigger Notification & Email
-    await Notification.create({
-      user: order.user._id,
-      title: `Order Status: ${orderStatus.toUpperCase()}`,
-      message: `Your order #${order._id} is now ${orderStatus}.`
-    });
-
-    const emailHtml = orderStatus === 'confirmed' 
-      ? getInvoiceEmailTemplate(order)
-      : getStatusUpdateEmailTemplate(order, `Order Status: ${orderStatus.toUpperCase()}`, statusMessage);
-
-    await sendEmail({
-      to: order.user.email,
-      subject: orderStatus === 'confirmed' 
-        ? `Invoice for Order #${order._id} - Vardaan Store` 
-        : `Order #${order._id} Status Update: ${orderStatus.toUpperCase()}`,
-      text: `Hello ${order.user.name},\n\nYour order #${order._id} status is now: ${orderStatus}.\nUpdate Details: ${statusMessage}\n\nThank you for shopping with us!`,
-      html: emailHtml
-    });
-
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
