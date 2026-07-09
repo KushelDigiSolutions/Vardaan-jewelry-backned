@@ -248,7 +248,15 @@ const Returns = ({ token }) => {
             <div style={{ padding: '20px', overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* Metadata Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '6px' }}>
+              <div style={{
+    display: 'grid',
+    gridTemplateColumns:
+      window.innerWidth < 576 ? '1fr' : 'repeat(2, 1fr)',
+    gap: '15px',
+    backgroundColor: '#f9f9f9',
+    padding: '15px',
+    borderRadius: '6px',
+  }}>
                 <div>
                   <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', display: 'block' }}>Client Name</span>
                   <span style={{ fontWeight: '600' }}>{selectedRequest.user?.name}</span>
