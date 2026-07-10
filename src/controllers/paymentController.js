@@ -1,6 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Order from '../models/Order.js';
+import Cart from '../models/Cart.js';
 import Transaction from '../models/Transaction.js';
 import Product from '../models/Product.js';
 import InventoryLog from '../models/InventoryLog.js';
@@ -113,6 +114,18 @@ export const verifyPayment = async (req, res, next) => {
     }
 
     await order.save();
+
+    // Clear the user's cart now that payment is confirmed
+    // (cart was kept intact during checkout to allow retry if payment was cancelled)
+    try {
+      const cart = await Cart.findOne({ user: order.user._id });
+      if (cart) {
+        cart.items = [];
+        await cart.save();
+      }
+    } catch (cartErr) {
+      console.error('Failed to clear cart after successful payment:', cartErr);
+    }
 
     // Create Audit ledger transaction
     await Transaction.create({
