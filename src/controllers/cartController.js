@@ -42,7 +42,7 @@ export const addToCart = async (req, res, next) => {
     } else if (variant && product.sizes && product.sizes.length > 0) {
       // Size-only variant — check per-size inventory if set
       const sizeMatch = product.sizes.find(s => s.size === variant);
-      if (sizeMatch && sizeMatch.inventory > 0) {
+      if (sizeMatch) {
         availableInventory = sizeMatch.inventory;
       }
     }
@@ -173,7 +173,7 @@ export const updateCartItem = async (req, res, next) => {
       } else if (itemVariant && product.sizes && product.sizes.length > 0) {
         // Size-only variant — check per-size inventory if set
         const sizeMatch = product.sizes.find(s => s.size === itemVariant);
-        if (sizeMatch && sizeMatch.inventory > 0) {
+        if (sizeMatch) {
           availableInventory = sizeMatch.inventory;
         }
       }

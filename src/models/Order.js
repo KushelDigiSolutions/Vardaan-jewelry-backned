@@ -51,6 +51,7 @@ const orderSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   couponCode: { type: String, default: '' },
   discount: { type: Number, default: 0 },
+  stockDeducted: { type: Boolean, default: false }, // true once inventory has been deducted for this order
   shiprocketOrderId: { type: String, default: '' },
   shiprocketShipmentId: { type: String, default: '' },
   tracking: {

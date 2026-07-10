@@ -8,6 +8,7 @@ import { incrementCouponUsage } from './couponController.js';
 import { sendEmail } from '../utils/email.js';
 import { getInvoiceEmailTemplate, getStatusUpdateEmailTemplate, getOrderPlacedEmailTemplate } from '../utils/emailTemplates.js';
 import { createShiprocketOrder, generateAWB } from '../utils/shiprocket.js';
+import { deductInventory, restoreInventory } from '../utils/inventoryHelper.js';
 
 // Initialize Checkout / Create Pending Order from Cart
 export const checkoutOrder = async (req, res, next) => {
@@ -37,10 +38,12 @@ export const checkoutOrder = async (req, res, next) => {
         return res.status(400).json({ success: false, message: `Product ${prod.name} is no longer available` });
       }
 
-      // Stock limit validation based on variant
+      // Stock limit validation — check correct inventory bucket
       let availableInventory = prod.inventory;
+
       if (item.variantDetails && prod.variants && prod.variants.length > 0) {
-        const match = prod.variants.find(v => 
+        // Full variant (karat + metalColor + size)
+        const match = prod.variants.find(v =>
           v.size === item.variantDetails.size &&
           v.karat === item.variantDetails.karat &&
           v.metalColor === item.variantDetails.metalColor &&
@@ -48,9 +51,11 @@ export const checkoutOrder = async (req, res, next) => {
           (v.grossWeight || '') === (item.variantDetails.grossWeight || '') &&
           (v.netWeight || '') === (item.variantDetails.netWeight || '')
         );
-        if (match) {
-          availableInventory = match.inventory;
-        }
+        if (match) availableInventory = match.inventory;
+      } else if (item.variant && prod.sizes && prod.sizes.length > 0) {
+        // Size-only variant — check per-size inventory
+        const sizeMatch = prod.sizes.find(s => s.size === item.variant);
+        if (sizeMatch) availableInventory = sizeMatch.inventory;
       }
 
       if (availableInventory < item.quantity) {
@@ -122,18 +127,30 @@ export const checkoutOrder = async (req, res, next) => {
       totalAmount,
       couponCode: couponCode ? couponCode.toUpperCase() : '',
       discount,
+      stockDeducted: false,
       tracking: {
         statusHistory: [{ status: 'pending', message: 'Awaiting checkout completion and payment verification' }]
       }
     });
 
-    // For COD: clear cart immediately since no payment gateway is involved.
-    // For Online payments: keep cart intact until payment is verified successfully.
-    // This prevents cart from being lost if user cancels the Razorpay payment popup.
+    // ─── COD: deduct stock immediately and clear cart ───────────────────────
+    // For Online payments: keep cart intact and DON'T deduct stock yet.
+    // Stock for online orders is deducted only after payment is verified.
     if (paymentMethod === 'COD') {
+      // Deduct inventory right away — COD is a confirmed purchase commitment
+      try {
+        await deductInventory(order.items, order._id);
+        order.stockDeducted = true;
+        await order.save();
+      } catch (invErr) {
+        console.error('Inventory deduction failed for COD order:', invErr);
+      }
+
+      // Clear cart immediately for COD (no payment gateway popup)
       cart.items = [];
       await cart.save();
     }
+    // ────────────────────────────────────────────────────────────────────────
 
     // Increment coupon usage count after successful order creation
     if (couponCode) {
@@ -263,76 +280,30 @@ export const updateOrderStatus = async (req, res, next) => {
 
       // Record tracking update message
       let statusMessage = `Order status updated to ${orderStatus}`;
+
       if (orderStatus === 'confirmed') {
         statusMessage = 'Order payment confirmed. Preparing for package shipment.';
-        
-        // DECREMENT inventory on confirmation (if not already done)
-        for (const item of order.items) {
-          const prod = await Product.findById(item.product);
-          if (prod) {
-            prod.inventory = Math.max(0, prod.inventory - item.quantity);
-            if (item.variantDetails && prod.variants && prod.variants.length > 0) {
-              const vIndex = prod.variants.findIndex(v => 
-                v.size === item.variantDetails.size &&
-                v.karat === item.variantDetails.karat &&
-                v.metalColor === item.variantDetails.metalColor &&
-                (v.metalType || '') === (item.variantDetails.metalType || '') &&
-                (v.grossWeight || '') === (item.variantDetails.grossWeight || '') &&
-                (v.netWeight || '') === (item.variantDetails.netWeight || '')
-              );
-              if (vIndex > -1) {
-                prod.variants[vIndex].inventory = Math.max(0, prod.variants[vIndex].inventory - item.quantity);
-              }
-            }
-            await prod.save();
 
-            await InventoryLog.create({
-              product: prod._id,
-              change: -item.quantity,
-              type: 'sale',
-              notes: `Stock subtracted for Order #${order._id}`
-            });
-
-            // Check for Low Stock warnings
-            if (prod.inventory <= 10) {
-              await Notification.create({
-                title: 'Low Stock Alert',
-                message: `Product "${prod.name}" (SKU: ${prod.sku}) has only ${prod.inventory} units remaining!`,
-              });
-            }
+        // Only deduct inventory if not already done (prevents double-deduction for COD orders)
+        if (!order.stockDeducted) {
+          try {
+            await deductInventory(order.items, order._id);
+            order.stockDeducted = true;
+          } catch (invErr) {
+            console.error('Inventory deduction failed on admin confirm:', invErr);
           }
         }
+
       } else if (orderStatus === 'cancelled' && previousStatus !== 'cancelled') {
         statusMessage = 'Order has been cancelled.';
-        
-        // RESTORE inventory if order was already confirmed/shipped
-        if (previousStatus === 'confirmed' || previousStatus === 'shipped') {
-          for (const item of order.items) {
-            const prod = await Product.findById(item.product);
-            if (prod) {
-              prod.inventory += item.quantity;
-              if (item.variantDetails && prod.variants && prod.variants.length > 0) {
-                const vIndex = prod.variants.findIndex(v => 
-                  v.size === item.variantDetails.size &&
-                  v.karat === item.variantDetails.karat &&
-                  v.metalColor === item.variantDetails.metalColor &&
-                  (v.metalType || '') === (item.variantDetails.metalType || '') &&
-                  (v.grossWeight || '') === (item.variantDetails.grossWeight || '') &&
-                  (v.netWeight || '') === (item.variantDetails.netWeight || '')
-                );
-                if (vIndex > -1) {
-                  prod.variants[vIndex].inventory += item.quantity;
-                }
-              }
-              await prod.save();
 
-              await InventoryLog.create({
-                product: prod._id,
-                change: item.quantity,
-                type: 'return',
-                notes: `Stock returned from cancelled Order #${order._id}`
-              });
-            }
+        // Restore inventory only if stock was previously deducted
+        if (order.stockDeducted) {
+          try {
+            await restoreInventory(order.items, order._id);
+            order.stockDeducted = false;
+          } catch (invErr) {
+            console.error('Inventory restore failed on admin cancel:', invErr);
           }
         }
       }
@@ -350,14 +321,14 @@ export const updateOrderStatus = async (req, res, next) => {
       });
 
       try {
-        const emailHtml = orderStatus === 'confirmed' 
+        const emailHtml = orderStatus === 'confirmed'
           ? getInvoiceEmailTemplate(order)
           : getStatusUpdateEmailTemplate(order, `Order Status: ${orderStatus.toUpperCase()}`, statusMessage);
 
         await sendEmail({
           to: order.user.email,
-          subject: orderStatus === 'confirmed' 
-            ? `Invoice for Order #${order._id} - Vardaan Store` 
+          subject: orderStatus === 'confirmed'
+            ? `Invoice for Order #${order._id} - Vardaan Store`
             : `Order #${order._id} Status Update: ${orderStatus.toUpperCase()}`,
           text: `Hello ${order.user.name},\n\nYour order #${order._id} status is now: ${orderStatus}.\nUpdate Details: ${statusMessage}\n\nThank you for shopping with us!`,
           html: emailHtml
@@ -492,37 +463,16 @@ export const cancelOrder = async (req, res, next) => {
       return res.status(400).json({ success: false, message: `Cannot cancel order after it has been ${order.orderStatus}` });
     }
 
-    const previousStatus = order.orderStatus;
     order.orderStatus = 'cancelled';
-    
-    // Restore stock if previously confirmed
-    if (previousStatus === 'confirmed') {
-      for (const item of order.items) {
-        const prod = await Product.findById(item.product);
-        if (prod) {
-          prod.inventory += item.quantity;
-          if (item.variantDetails && prod.variants && prod.variants.length > 0) {
-            const vIndex = prod.variants.findIndex(v => 
-              v.size === item.variantDetails.size &&
-              v.karat === item.variantDetails.karat &&
-              v.metalColor === item.variantDetails.metalColor &&
-              (v.metalType || '') === (item.variantDetails.metalType || '') &&
-              (v.grossWeight || '') === (item.variantDetails.grossWeight || '') &&
-              (v.netWeight || '') === (item.variantDetails.netWeight || '')
-            );
-            if (vIndex > -1) {
-              prod.variants[vIndex].inventory += item.quantity;
-            }
-          }
-          await prod.save();
 
-          await InventoryLog.create({
-            product: prod._id,
-            change: item.quantity,
-            type: 'return',
-            notes: `Stock returned from customer-cancelled Order #${order._id}`
-          });
-        }
+    // Restore stock only if it was previously deducted (handles COD + confirmed online orders)
+    // Uses shared helper that correctly handles variants[], sizes[], and root inventory
+    if (order.stockDeducted) {
+      try {
+        await restoreInventory(order.items, order._id);
+        order.stockDeducted = false;
+      } catch (invErr) {
+        console.error('Inventory restore failed on user cancel:', invErr);
       }
     }
 
