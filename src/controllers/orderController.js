@@ -109,8 +109,8 @@ export const checkoutOrder = async (req, res, next) => {
     let shippingCost = 0;
     if (shippingMethod === 'Express Delivery') {
       shippingCost = 150;
-    } else if (totalAmount < 999) {
-      shippingCost = 50; // Flat fee for low totals
+    } else if (totalAmount <= 399) {
+      shippingCost = 50; // Flat fee for low totals (below 399)
     }
     totalAmount += shippingCost;
 
