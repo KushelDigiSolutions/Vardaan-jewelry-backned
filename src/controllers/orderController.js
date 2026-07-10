@@ -127,9 +127,13 @@ export const checkoutOrder = async (req, res, next) => {
       }
     });
 
-    // Clear user cart
-    cart.items = [];
-    await cart.save();
+    // For COD: clear cart immediately since no payment gateway is involved.
+    // For Online payments: keep cart intact until payment is verified successfully.
+    // This prevents cart from being lost if user cancels the Razorpay payment popup.
+    if (paymentMethod === 'COD') {
+      cart.items = [];
+      await cart.save();
+    }
 
     // Increment coupon usage count after successful order creation
     if (couponCode) {
