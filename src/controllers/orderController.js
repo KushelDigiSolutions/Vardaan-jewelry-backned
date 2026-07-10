@@ -25,6 +25,14 @@ export const checkoutOrder = async (req, res, next) => {
 
     for (const item of cart.items) {
       const prod = item.product;
+
+      // If the product was deleted from DB, populate returns null — clean it from cart
+      if (!prod) {
+        cart.items = cart.items.filter(i => i.product !== null && i.product !== undefined);
+        await cart.save();
+        return res.status(400).json({ success: false, message: 'One or more products in your cart are no longer available. Please review your cart.' });
+      }
+
       if (!prod.isActive) {
         return res.status(400).json({ success: false, message: `Product ${prod.name} is no longer available` });
       }
