@@ -441,7 +441,18 @@ const Orders = ({ token }) => {
                             </div>
                           )}
                         </td>
-                        <td>{item.name}</td>
+                        <td>
+                          <div style={{ fontWeight: '500' }}>{item.name}</div>
+                          {(item.variantDetails?.size || item.variant) && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                              <span style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>
+                                Size: {item.variantDetails?.size || item.variant}
+                              </span>
+                              {item.variantDetails?.karat && ` | ${item.variantDetails.karat}`}
+                              {item.variantDetails?.metalColor && ` | ${item.variantDetails.metalColor}`}
+                            </div>
+                          )}
+                        </td>
                         <td style={{ fontFamily: 'monospace' }}>{item.product?.sku || 'N/A'}</td>
                         <td>{item.quantity}</td>
                         <td>₹{item.price.toLocaleString('en-IN')}</td>
