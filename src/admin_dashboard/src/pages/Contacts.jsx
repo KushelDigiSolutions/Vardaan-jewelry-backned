@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Mail, Phone, Calendar, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
 
 const Contacts = ({ token }) => {
+  const toast = useToast();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,7 +41,10 @@ const Contacts = ({ token }) => {
     fetchMessages();
   }, []);
 
+  const [togglingId, setTogglingId] = useState(null);
+
   const handleToggleResolve = async (id) => {
+    setTogglingId(id);
     try {
       const res = await fetch(`/api/contact/${id}`, {
         method: 'PUT',
@@ -55,9 +60,15 @@ const Contacts = ({ token }) => {
         if (activeMessage && activeMessage._id === id) {
           setActiveMessage(prev => ({ ...prev, isResolved: !prev.isResolved }));
         }
+        toast.success(data.message || 'Inquiry status updated successfully!');
+      } else {
+        toast.error(data.message || 'Failed to update status');
       }
     } catch (err) {
       console.error('Error updating status:', err);
+      toast.error('Error updating status');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -185,9 +196,10 @@ const Contacts = ({ token }) => {
                         <button
                           className={`btn ${m.isResolved ? 'btn-secondary' : 'btn-primary'}`}
                           onClick={() => handleToggleResolve(m._id)}
+                          disabled={togglingId === m._id}
                           style={{ padding: '6px 12px', fontSize: '12px' }}
                         >
-                          {m.isResolved ? 'Mark Pending' : 'Mark Resolved'}
+                          {togglingId === m._id ? 'Updating...' : (m.isResolved ? 'Mark Pending' : 'Mark Resolved')}
                         </button>
                       </div>
                     </td>
@@ -266,10 +278,11 @@ const Contacts = ({ token }) => {
               <button type="button" className="btn btn-secondary" onClick={() => setActiveMessage(null)}>Close</button>
               <button 
                 type="button" 
+                disabled={togglingId === activeMessage._id}
                 className={`btn ${activeMessage.isResolved ? 'btn-secondary' : 'btn-primary'}`} 
                 onClick={() => handleToggleResolve(activeMessage._id)}
               >
-                {activeMessage.isResolved ? 'Mark Pending Review' : 'Mark as Resolved'}
+                {togglingId === activeMessage._id ? 'Updating...' : (activeMessage.isResolved ? 'Mark Pending Review' : 'Mark as Resolved')}
               </button>
             </div>
           </div>

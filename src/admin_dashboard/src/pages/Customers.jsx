@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Search, UserCheck, UserX, RefreshCw, Mail, Edit2, Trash2, X, Eye, MapPin, Calendar, Shield, Home, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
+import { useLoader } from '../context/LoaderContext.jsx';
 
 const Customers = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -51,6 +55,7 @@ const Customers = ({ token }) => {
     const actStr = currentStatus ? 'suspend' : 'activate';
     if (!window.confirm(`Are you sure you want to ${actStr} this customer account?`)) return;
 
+    showLoader(currentStatus ? 'Suspending account...' : 'Activating account...');
     try {
       const res = await fetch(`/api/customers/${id}/status`, {
         method: 'PUT',
@@ -59,13 +64,16 @@ const Customers = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || `Customer account ${currentStatus ? 'suspended' : 'activated'} successfully!`);
         fetchCustomers();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Operation failed');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error changing account status');
+    } finally {
+      hideLoader();
     }
   };
 
@@ -81,8 +89,12 @@ const Customers = ({ token }) => {
     setShowViewModal(true);
   };
 
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+
   const handleSaveCustomer = async (e) => {
     e.preventDefault();
+    setSubmittingEdit(true);
+    showLoader('Saving customer profile...');
     try {
       const res = await fetch(`/api/customers/${editCustomerId}`, {
         method: 'PUT',
@@ -95,20 +107,24 @@ const Customers = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || 'Customer profile updated successfully!');
         setShowEditModal(false);
         fetchCustomers();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Failed to update customer profile');
       }
     } catch (err) {
       console.error(err);
-      alert('Error updating customer');
+      toast.error('Error updating customer');
+    } finally {
+      setSubmittingEdit(false);
+      hideLoader();
     }
   };
 
   const handleDeleteCustomer = async (id) => {
     if (!window.confirm('Are you sure you want to permanently delete this customer? This action is irreversible.')) return;
+    showLoader('Deleting customer profile...');
     try {
       const res = await fetch(`/api/customers/${id}`, {
         method: 'DELETE',
@@ -117,14 +133,16 @@ const Customers = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || 'Customer account deleted successfully!');
         fetchCustomers();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Failed to delete customer');
       }
     } catch (err) {
       console.error(err);
-      alert('Error deleting customer');
+      toast.error('Error deleting customer');
+    } finally {
+      hideLoader();
     }
   };
 
@@ -525,7 +543,9 @@ const Customers = ({ token }) => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+                <button type="submit" disabled={submittingEdit} className="btn btn-primary">
+                  {submittingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </div>

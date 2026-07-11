@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ShoppingBag, Eye, X, Truck, Landmark, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
+import { useLoader } from '../context/LoaderContext.jsx';
 
 const Orders = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -46,6 +50,7 @@ const Orders = ({ token }) => {
   }, []);
 
   const handleOpenDetails = async (orderId) => {
+    showLoader('Loading order details...');
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -56,16 +61,21 @@ const Orders = ({ token }) => {
         setTempStatus(data.data.orderStatus);
         setTempPaymentStatus(data.data.paymentStatus);
         setShowDetailModal(true);
+      } else {
+        toast.error(data.message || 'Failed to fetch order details');
       }
     } catch (err) {
       console.error(err);
-      alert('Error fetching order details');
+      toast.error('Error fetching order details');
+    } finally {
+      hideLoader();
     }
   };
 
   const handleStatusChange = async (newStatus) => {
     if (!selectedOrder) return;
     setActionLoading(true);
+    showLoader('Updating order status...');
     try {
       const res = await fetch(`/api/orders/${selectedOrder._id}/status`, {
         method: 'PUT',
@@ -78,22 +88,25 @@ const Orders = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(`Order status updated to ${newStatus}`);
+        toast.success(`Order status updated to ${newStatus}`);
         handleOpenDetails(selectedOrder._id); // Reload details
         fetchOrders(); // Reload list
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Fulfillment status update failed');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error updating order status');
     } finally {
       setActionLoading(false);
+      hideLoader();
     }
   };
 
   const handlePaymentStatusChange = async (newPaymentStatus) => {
     if (!selectedOrder) return;
     setActionLoading(true);
+    showLoader('Updating payment status...');
     try {
       const res = await fetch(`/api/orders/${selectedOrder._id}/status`, {
         method: 'PUT',
@@ -106,22 +119,25 @@ const Orders = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(`Payment status updated to ${newPaymentStatus}`);
+        toast.success(`Payment status updated to ${newPaymentStatus}`);
         handleOpenDetails(selectedOrder._id); // Reload details
         fetchOrders(); // Reload list
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Payment status update failed');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error updating payment status');
     } finally {
       setActionLoading(false);
+      hideLoader();
     }
   };
 
   const handleGenerateAWB = async () => {
     if (!selectedOrder) return;
     setActionLoading(true);
+    showLoader('Generating shipment AWB...');
     try {
       const res = await fetch(`/api/orders/${selectedOrder._id}/ship`, {
         method: 'POST',
@@ -134,16 +150,18 @@ const Orders = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(`Shipment registered! AWB: ${data.data.tracking.awb}`);
+        toast.success(`Shipment registered successfully! AWB: ${data.data.tracking.awb}`);
         handleOpenDetails(selectedOrder._id);
         fetchOrders();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Fulfillment logistics registration failed');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error registering shipment');
     } finally {
       setActionLoading(false);
+      hideLoader();
     }
   };
 
@@ -190,7 +208,7 @@ const Orders = ({ token }) => {
             className="form-control"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
+            style={{ flex: '1', minWidth: '150px', marginBottom: 0 ,cursor:"pointer"}}
           >
             <option value="">All Status</option>
             <option value="pending">Pending</option>
@@ -204,7 +222,7 @@ const Orders = ({ token }) => {
             className="form-control"
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
-            style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
+            style={{ flex: '1', minWidth: '150px', marginBottom: 0 ,cursor:"pointer"}}
           >
             <option value="">All Payment Status</option>
             <option value="pending">Pending Payment</option>
@@ -217,7 +235,7 @@ const Orders = ({ token }) => {
             className="form-control"
             value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)}
-            style={{ flex: '1', minWidth: '150px', marginBottom: 0 }}
+            style={{ flex: '1', minWidth: '150px', marginBottom: 0 ,cursor:"pointer"}}
           >
             <option value="">All Payment Methods</option>
             <option value="COD">Cash on Delivery (COD)</option>
@@ -232,7 +250,7 @@ const Orders = ({ token }) => {
               className="form-control"
               value={startDateFilter}
               onChange={(e) => setStartDateFilter(e.target.value)}
-              style={{ fontSize: '12px', marginBottom: 0 }}
+              style={{ fontSize: '12px', marginBottom: 0 ,cursor:"pointer"}}
               title="Start Date"
             />
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>to</span>
@@ -241,7 +259,7 @@ const Orders = ({ token }) => {
               className="form-control"
               value={endDateFilter}
               onChange={(e) => setEndDateFilter(e.target.value)}
-              style={{ fontSize: '12px', marginBottom: 0 }}
+              style={{ fontSize: '12px', marginBottom: 0 ,cursor:"pointer"}}
               title="End Date"
             />
             {(startDateFilter || endDateFilter) && (

@@ -8,11 +8,15 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useToast } from "../context/ToastContext.jsx";
+import { useLoader } from "../context/LoaderContext.jsx";
 
 const STOCK_PAGE_SIZE = 10;
 const LOGS_PAGE_SIZE = 15;
 
 const Inventory = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [products, setProducts] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -155,6 +159,7 @@ const Inventory = ({ token }) => {
     if (!selectedProductId || !changeAmount) return;
 
     setFormLoading(true);
+    showLoader('Applying stock adjustment...');
     try {
       const body = {
         productId: selectedProductId,
@@ -175,20 +180,21 @@ const Inventory = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert("Stock level adjusted successfully!");
+        toast.success("Stock level adjusted successfully!");
         setChangeAmount("");
         setNotes("");
         setSelectedSize("");
         await fetchProducts();
         fetchLogs(logsPage, logsSearch);
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Adjustment failed');
       }
     } catch (err) {
       console.error(err);
-      alert("Error updating stock level");
+      toast.error("Error updating stock level");
     } finally {
       setFormLoading(false);
+      hideLoader();
     }
   };
 
@@ -723,7 +729,7 @@ const Inventory = ({ token }) => {
                               ? "info"
                               : log.type === "return"
                                 ? "warning"
-                                : "secondary"
+                                : "info"
                         }`}
                       >
                         {log.type.replace("_", " ")}
