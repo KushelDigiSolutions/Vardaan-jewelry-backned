@@ -8,8 +8,12 @@ import {
   exportToCSV,
   downloadTemplate
 } from '../utils/excelHelper';
+import { useToast } from '../context/ToastContext.jsx';
+import { useLoader } from '../context/LoaderContext.jsx';
 
 const Products = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +118,7 @@ const Products = ({ token }) => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to remove this product from the catalog?')) return;
+    showLoader('Removing product...');
     try {
       const res = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
@@ -121,13 +126,16 @@ const Products = ({ token }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || 'Product removed successfully!');
         fetchProducts();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Failed to remove product');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error removing product');
+    } finally {
+      hideLoader();
     }
   };
 
@@ -175,7 +183,7 @@ const Products = ({ token }) => {
 
   const handleAddAttribute = () => {
     if (!newAttrKey || !newAttrVal) {
-      alert('Please fill out both Key and Value to add an attribute!');
+      toast.warning('Please fill out both Key and Value to add an attribute!');
       return;
     }
     setFormData({
@@ -193,12 +201,12 @@ const Products = ({ token }) => {
 
   const handleAddVariant = () => {
     if (!newVariant.size || !newVariant.price || !newVariant.inventory) {
-      alert('Please fill out Size, Price, and Stock level to add a variant!');
+      toast.warning('Please fill out Size, Price, and Stock level to add a variant!');
       return;
     }
     const sizes = newVariant.size.split(',').map(s => s.trim()).filter(Boolean);
     if (sizes.length === 0) {
-      alert('Please enter a valid size or comma-separated sizes.');
+      toast.warning('Please enter a valid size or comma-separated sizes.');
       return;
     }
     const newVariantsList = sizes.map(sizeVal => ({
@@ -232,12 +240,12 @@ const Products = ({ token }) => {
 
   const handleAddSize = () => {
     if (!newSize.size) {
-      alert('Please fill out the size field.');
+      toast.warning('Please fill out the size field.');
       return;
     }
     const sizes = newSize.size.split(',').map(s => s.trim()).filter(Boolean);
     if (sizes.length === 0) {
-      alert('Please enter a valid size.');
+      toast.warning('Please enter a valid size.');
       return;
     }
     const newSizesList = sizes.map(sizeVal => ({
@@ -271,6 +279,7 @@ const Products = ({ token }) => {
     const file = e.target.files[0];
     if (!file) return;
     setMainImageUploading(true);
+    showLoader('Uploading main image...');
     const uploadData = new FormData();
     uploadData.append('file', file);
 
@@ -288,14 +297,16 @@ const Products = ({ token }) => {
           ...prev,
           mainImage: data.files[0].url
         }));
+        toast.success('Main image uploaded successfully!');
       } else {
-        alert(data.message || 'Upload failed');
+        toast.error(data.message || 'Upload failed');
       }
     } catch (err) {
       console.error(err);
-      alert('Error uploading file');
+      toast.error('Error uploading file');
     } finally {
       setMainImageUploading(false);
+      hideLoader();
     }
   };
 
@@ -303,6 +314,7 @@ const Products = ({ token }) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
     setWearableMediaUploading(true);
+    showLoader('Uploading details media...');
 
     try {
       const uploadPromises = files.map(file => {
@@ -334,11 +346,13 @@ const Products = ({ token }) => {
         ...prev,
         wearableMedia: [...(prev.wearableMedia || []), ...newMedia]
       }));
+      toast.success('Media uploaded successfully!');
     } catch (err) {
       console.error(err);
-      alert('Error uploading files');
+      toast.error('Error uploading files');
     } finally {
       setWearableMediaUploading(false);
+      hideLoader();
     }
   };
 
@@ -354,12 +368,16 @@ const Products = ({ token }) => {
     setFormData({ ...formData, variants: updated });
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formData.mainImage) {
-      alert('please upload image on creating product');
+      toast.warning('please upload image on creating product');
       return;
     }
+    setSubmitting(true);
+    showLoader(currentProduct ? 'Saving product changes...' : 'Creating new product...');
     try {
       const url = currentProduct ? `/api/products/${currentProduct._id}` : '/api/products';
       const method = currentProduct ? 'PUT' : 'POST';
@@ -390,18 +408,22 @@ const Products = ({ token }) => {
       if (data.success) {
         setIsEditing(false);
         fetchProducts();
-        alert(currentProduct ? 'Product updated successfully' : 'Product created successfully');
+        toast.success(currentProduct ? 'Product updated successfully' : 'Product created successfully');
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Operation failed');
       }
     } catch (err) {
       console.error(err);
-      alert('Error saving product');
+      toast.error('Error saving product');
+    } finally {
+      setSubmitting(false);
+      hideLoader();
     }
   };
 
   const handleExport = async (format) => {
     setExportLoading(true);
+    showLoader('Exporting product catalog...');
     try {
       const res = await fetch('/api/products/export', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -427,15 +449,17 @@ const Products = ({ token }) => {
             exportToExcel(formatted, `products_export_${timestamp}.xlsx`);
           }
         }
+        toast.success('Catalog exported successfully!');
       } else {
-        alert('Failed to export catalog: ' + (data.message || 'Unknown error'));
+        toast.error('Failed to export catalog: ' + (data.message || 'Unknown error'));
       }
     } catch (err) {
       console.error(err);
-      alert('Error fetching catalog for export.');
+      toast.error('Error fetching catalog for export.');
     } finally {
       setExportLoading(false);
       setShowExportModal(false);
+      hideLoader();
     }
   };
 
@@ -444,6 +468,7 @@ const Products = ({ token }) => {
     if (!file) return;
 
     setImportStatus('Reading and parsing file...');
+    showLoader('Parsing and importing file...');
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -455,6 +480,8 @@ const Products = ({ token }) => {
 
         if (rawRows.length === 0) {
           setImportStatus('Error: The uploaded file is empty.');
+          toast.error('The uploaded file is empty.');
+          hideLoader();
           return;
         }
 
@@ -473,16 +500,23 @@ const Products = ({ token }) => {
         const responseData = await res.json();
         if (responseData.success) {
           setImportStatus(`Success: ${responseData.message}`);
+          toast.success(responseData.message || 'Products imported successfully!');
           fetchProducts();
         } else {
           setImportStatus(`Import Error: ${responseData.message}`);
+          toast.error(responseData.message || 'Import failed.');
         }
       } catch (err) {
         setImportStatus(`Error: ${err.message}`);
+        toast.error(`Error: ${err.message}`);
+      } finally {
+        hideLoader();
       }
     };
     reader.onerror = () => {
       setImportStatus('Error: Failed to read the file.');
+      toast.error('Failed to read the file.');
+      hideLoader();
     };
     reader.readAsArrayBuffer(file);
   };
@@ -490,6 +524,7 @@ const Products = ({ token }) => {
   const handleBulkImport = async (e) => {
     e.preventDefault();
     setImportStatus('Processing bulk import...');
+    showLoader('Processing bulk import...');
     try {
       const parsed = JSON.parse(importJson);
       const res = await fetch('/api/products/import', {
@@ -504,12 +539,17 @@ const Products = ({ token }) => {
       if (data.success) {
         setImportStatus(data.message);
         setImportJson('');
+        toast.success(data.message || 'Products imported successfully!');
         fetchProducts();
       } else {
         setImportStatus(`Import Error: ${data.message}`);
+        toast.error(data.message || 'Import failed.');
       }
     } catch (err) {
       setImportStatus(`Parsing error: Invalid JSON structure. Must be a valid JSON array.`);
+      toast.error('Invalid JSON structure. Must be a valid JSON array.');
+    } finally {
+      hideLoader();
     }
   };
 
@@ -1002,7 +1042,9 @@ const Products = ({ token }) => {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px', paddingBefore: '16px', borderTop: '1px solid var(--border-color)' }}>
             <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{currentProduct ? 'Save Adjustments' : 'Add to Catalog'}</button>
+            <button type="submit" disabled={submitting || mainImageUploading || wearableMediaUploading} className="btn btn-primary">
+              {submitting ? 'Saving...' : (currentProduct ? 'Save Adjustments' : 'Add to Catalog')}
+            </button>
           </div>
         </form>
       </div>
@@ -1026,7 +1068,8 @@ const Products = ({ token }) => {
 
         <div className="filters-wrapper">
           <select
-            className="form-control"
+          style={{cursor:"pointer"}}
+            className="form-control "
             value={selectedCategory}
             onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
           >
@@ -1037,7 +1080,8 @@ const Products = ({ token }) => {
           </select>
 
           <select
-            className="form-control"
+            style={{cursor:"pointer"}}
+            className="form-control "
             value={sortOption}
             onChange={(e) => { setSortOption(e.target.value); setPage(1); }}
           >

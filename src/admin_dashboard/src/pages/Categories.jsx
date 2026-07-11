@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, ShieldCheck, FolderMinus, RefreshCw, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
+import { useLoader } from '../context/LoaderContext.jsx';
 
 const Categories = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -65,6 +69,7 @@ const Categories = ({ token }) => {
     const file = e.target.files[0];
     if (!file) return;
     setImageUploading(true);
+    showLoader('Uploading image...');
     const uploadData = new FormData();
     uploadData.append('image', file);
 
@@ -79,28 +84,35 @@ const Categories = ({ token }) => {
       const data = await res.json();
       if (data.success && data.url) {
         setImage(data.url);
+        toast.success('Image uploaded successfully!');
       } else {
-        alert(data.message || 'Upload failed');
+        toast.error(data.message || 'Upload failed');
       }
     } catch (err) {
       console.error(err);
-      alert('Error uploading file');
+      toast.error('Error uploading file');
     } finally {
       setImageUploading(false);
+      hideLoader();
     }
   };
+
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (imageUploading) {
-      alert('Please wait for the image to finish uploading.');
+      toast.warning('Please wait for the image to finish uploading.');
       return;
     }
     if (!image) {
-      alert('Category image banner is mandatory. Please upload an image.');
+      toast.warning('Category image banner is mandatory. Please upload an image.');
       return;
     }
+
+    setSubmitting(true);
+    showLoader(editingCategory ? 'Saving changes...' : 'Creating category...');
 
     try {
       const url = editingCategory ? `/api/categories/${editingCategory._id}` : '/api/categories';
@@ -125,20 +137,24 @@ const Categories = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(editingCategory ? 'Category updated successfully' : 'Category created successfully');
+        toast.success(editingCategory ? 'Category updated successfully' : 'Category created successfully');
         handleResetForm();
         fetchCategories();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Operation failed');
       }
     } catch (err) {
       console.error(err);
-      alert('Error updating category');
+      toast.error('Error saving category');
+    } finally {
+      setSubmitting(false);
+      hideLoader();
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this category? (Note: Categories with active subcategories cannot be deleted).')) return;
+    showLoader('Deleting category...');
     try {
       const res = await fetch(`/api/categories/${id}`, {
         method: 'DELETE',
@@ -147,13 +163,16 @@ const Categories = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || 'Category deleted successfully');
         fetchCategories();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Failed to delete category');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error deleting category');
+    } finally {
+      hideLoader();
     }
   };
 
@@ -199,7 +218,7 @@ const Categories = ({ token }) => {
               placeholder="Search category by name or slug..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '32px', paddingRight: '32px', fontSize: '12px', marginBottom: '0' }}
+              style={{ paddingLeft: '32px', paddingRight: '32px', fontSize: '12px', marginBottom: '0', }}
             />
             {searchTerm && (
               <button
@@ -222,7 +241,7 @@ const Categories = ({ token }) => {
               className="form-control"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+              style={{ fontSize: '12px', marginBottom: '0', height: '100%',cursor:"pointer" }}
             >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
@@ -235,7 +254,7 @@ const Categories = ({ token }) => {
               className="form-control"
               value={parentFilter}
               onChange={(e) => setParentFilter(e.target.value)}
-              style={{ fontSize: '12px', marginBottom: '0', height: '100%' }}
+              style={{ fontSize: '12px', marginBottom: '0', height: '100%',cursor:"pointer" }}
             >
               <option value="all">All Levels</option>
               <option value="root">Root Level</option>
@@ -454,8 +473,8 @@ const Categories = ({ token }) => {
                 Cancel
               </button>
             )}
-            <button type="submit" className="btn btn-primary" style={{ flexGrow: 2, justifyContent: 'center' }}>
-              {editingCategory ? 'Save Changes' : 'Create Category'}
+            <button type="submit" disabled={submitting || imageUploading} className="btn btn-primary" style={{ flexGrow: 2, justifyContent: 'center' }}>
+              {submitting ? (editingCategory ? 'Saving Changes...' : 'Creating Category...') : (editingCategory ? 'Save Changes' : 'Create Category')}
             </button>
           </div>
         </form>

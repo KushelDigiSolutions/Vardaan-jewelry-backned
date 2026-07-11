@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Mail, Lock, ShieldCheck, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
 
 const Login = ({ onLoginSuccess }) => {
+  const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,9 +42,11 @@ const Login = ({ onLoginSuccess }) => {
         throw new Error('Access Denied: Only admin accounts can log in here.');
       }
 
+      toast.success('Logged in successfully!');
       onLoginSuccess(data.data.token, data.data);
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -66,8 +70,10 @@ const Login = ({ onLoginSuccess }) => {
       }
 
       setOtpSent(true);
+      toast.success('OTP sent successfully to your email!');
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -94,9 +100,11 @@ const Login = ({ onLoginSuccess }) => {
         throw new Error('Access Denied: Only admin accounts can log in here.');
       }
 
+      toast.success('OTP verified. Logged in successfully!');
       onLoginSuccess(data.data.token, data.data);
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -120,8 +128,10 @@ const Login = ({ onLoginSuccess }) => {
       }
 
       setRecoverySent(true);
+      toast.success('Recovery code sent successfully!');
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -146,13 +156,15 @@ const Login = ({ onLoginSuccess }) => {
 
       setRecoveryMode(false);
       setRecoverySent(false);
-      alert('Password reset successfully. Please log in with your new password.');
+      toast.success('Password reset successfully. Please log in with your new password.');
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="login-wrapper">

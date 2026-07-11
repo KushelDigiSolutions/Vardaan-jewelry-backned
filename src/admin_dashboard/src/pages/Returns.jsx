@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Check, X, FileText, Image, Video, Eye } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
+import { useLoader } from '../context/LoaderContext.jsx';
 
 const Returns = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [returnRequests, setReturnRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -34,6 +38,7 @@ const Returns = ({ token }) => {
     if (notes === null) return; // cancel
 
     setActionLoading(true);
+    showLoader('Updating replacement request status...');
     try {
       const res = await fetch(`/api/returns/${id}/status`, {
         method: 'PUT',
@@ -46,16 +51,18 @@ const Returns = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || 'Status updated successfully!');
         setSelectedRequest(null);
         fetchReturns();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Operation failed');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error updating status');
     } finally {
       setActionLoading(false);
+      hideLoader();
     }
   };
 
