@@ -374,118 +374,158 @@ const Orders = ({ token }) => {
       </div>
 
       {/* Selected Order Detailed Drawer Modal */}
-      {showDetailModal && selectedOrder && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '780px' }}>
-            <div className="modal-header">
-              <h2>Order Fulfillment details: #{selectedOrder._id}</h2>
-              <button className="modal-close" onClick={() => setShowDetailModal(false)}><X size={20} /></button>
-            </div>
-            
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
-              {/* Top metadata grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div className="card" style={{ padding: '16px' }}>
-                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '14px', color: 'var(--primary)' }}>
-                    <Landmark size={16} /> Buyer & Billing Details
-                  </h4>
-                  <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <p><b>Name:</b> {selectedOrder.user?.name}</p>
-                    <p><b>Email:</b> {selectedOrder.user?.email}</p>
-                    <p><b>Method:</b> {selectedOrder.paymentMethod} ({selectedOrder.paymentStatus})</p>
-                  </div>
-                </div>
+      {showDetailModal && selectedOrder && (() => {
+        const itemsSubtotal = selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const codCharge = selectedOrder.codCharge !== undefined && selectedOrder.codCharge !== null ? selectedOrder.codCharge : (selectedOrder.paymentMethod === 'COD' ? 100 : 0);
+        const onlineDiscount = selectedOrder.onlineDiscount !== undefined && selectedOrder.onlineDiscount !== null ? selectedOrder.onlineDiscount : (selectedOrder.paymentMethod !== 'COD' ? Math.round((itemsSubtotal - selectedOrder.discount) * 0.05) : 0);
 
-                <div className="card" style={{ padding: '16px' }}>
-                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '14px', color: 'var(--secondary)' }}>
-                    <Truck size={16} /> Delivery Address
-                  </h4>
-                  <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <p><b>Address:</b> {selectedOrder.shippingAddress.street}</p>
-                    <p><b>City/State:</b> {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.zipCode}</p>
-                    <p><b>Country:</b> {selectedOrder.shippingAddress.country}</p>
-                  </div>
-                </div>
+        return (
+          <div className="modal-backdrop">
+            <div className="modal-content" style={{ maxWidth: '780px' }}>
+              <div className="modal-header">
+                <h2>Order Fulfillment details: #{selectedOrder._id}</h2>
+                <button className="modal-close" onClick={() => setShowDetailModal(false)}><X size={20} /></button>
               </div>
+              
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                
+                {/* Top metadata grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="card" style={{ padding: '16px' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '14px', color: 'var(--primary)' }}>
+                      <Landmark size={16} /> Buyer & Billing Details
+                    </h4>
+                    <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <p><b>Name:</b> {selectedOrder.user?.name}</p>
+                      <p><b>Email:</b> {selectedOrder.user?.email}</p>
+                      <p><b>Method:</b> {selectedOrder.paymentMethod} ({selectedOrder.paymentStatus})</p>
+                      {codCharge > 0 && <p><b>Handling Charge:</b> ₹{codCharge}</p>}
+                      {onlineDiscount > 0 && <p><b>Online Discount (5%):</b> ₹{onlineDiscount}</p>}
+                    </div>
+                  </div>
 
-              {/* Order Items Table */}
-              <div className="card" style={{ padding: '0px' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', fontWeight: 'bold', fontSize: '14px' }}>
-                  Order Products Summary
+                  <div className="card" style={{ padding: '16px' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '14px', color: 'var(--secondary)' }}>
+                      <Truck size={16} /> Delivery Address
+                    </h4>
+                    <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <p><b>Address:</b> {selectedOrder.shippingAddress.street}</p>
+                      <p><b>City/State:</b> {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.zipCode}</p>
+                      <p><b>Country:</b> {selectedOrder.shippingAddress.country}</p>
+                    </div>
+                  </div>
                 </div>
-                <table className="custom-table" style={{ fontSize: '13px' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '60px' }}>Image</th>
-                      <th>Product Title</th>
-                      <th>SKU</th>
-                      <th>Quantity</th>
-                      <th>Unit Price</th>
-                      <th style={{ textAlign: 'right' }}>Row Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedOrder.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>
-                          {item.product?.images?.[0] ? (
-                            <img 
-                              src={item.product.images[0]} 
-                              alt={item.name} 
-                              style={{ 
-                                width: '40px', 
-                                height: '40px', 
-                                objectFit: 'cover', 
-                                borderRadius: '6px',
-                                border: '1px solid var(--border-color)' 
-                              }} 
-                            />
-                          ) : (
-                            <div 
-                              style={{ 
-                                width: '40px', 
-                                height: '40px', 
-                                backgroundColor: 'rgba(255,255,255,0.05)', 
-                                borderRadius: '6px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '10px',
-                                color: 'var(--text-muted)'
-                              }}
-                            >
-                              N/A
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: '500' }}>{item.name}</div>
-                          {(item.variantDetails?.size || item.variant) && (
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                              <span style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>
-                                Size: {item.variantDetails?.size || item.variant}
-                              </span>
-                              {item.variantDetails?.karat && ` | ${item.variantDetails.karat}`}
-                              {item.variantDetails?.metalColor && ` | ${item.variantDetails.metalColor}`}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ fontFamily: 'monospace' }}>{item.product?.sku || 'N/A'}</td>
-                        <td>{item.quantity}</td>
-                        <td>₹{item.price.toLocaleString('en-IN')}</td>
+
+                {/* Order Items Table */}
+                <div className="card" style={{ padding: '0px' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', fontWeight: 'bold', fontSize: '14px' }}>
+                    Order Products Summary
+                  </div>
+                  <table className="custom-table" style={{ fontSize: '13px' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '60px' }}>Image</th>
+                        <th>Product Title</th>
+                        <th>SKU</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th style={{ textAlign: 'right' }}>Row Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.items.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            {item.product?.images?.[0] ? (
+                              <img 
+                                src={item.product.images[0]} 
+                                alt={item.name} 
+                                style={{ 
+                                  width: '40px', 
+                                  height: '40px', 
+                                  objectFit: 'cover', 
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border-color)' 
+                                }} 
+                              />
+                            ) : (
+                              <div 
+                                style={{ 
+                                  width: '40px', 
+                                  height: '40px', 
+                                  backgroundColor: 'rgba(255,255,255,0.05)', 
+                                  borderRadius: '6px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '10px',
+                                  color: 'var(--text-muted)'
+                                }}
+                              >
+                                N/A
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: '500' }}>{item.name}</div>
+                            {(item.variantDetails?.size || item.variant) && (
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                <span style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>
+                                  Size: {item.variantDetails?.size || item.variant}
+                                </span>
+                                {item.variantDetails?.karat && ` | ${item.variantDetails.karat}`}
+                                {item.variantDetails?.metalColor && ` | ${item.variantDetails.metalColor}`}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ fontFamily: 'monospace' }}>{item.product?.sku || 'N/A'}</td>
+                          <td>{item.quantity}</td>
+                          <td>₹{item.price.toLocaleString('en-IN')}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                            ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr style={{ borderTop: '2px solid var(--border-color)' }}>
+                        <td colSpan={4}></td>
+                        <td style={{ color: 'var(--text-muted)' }}>Items Subtotal:</td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                          ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                          ₹{itemsSubtotal.toLocaleString('en-IN')}
                         </td>
                       </tr>
-                    ))}
-                    <tr style={{ borderTop: '2px solid var(--border-color)' }}>
-                      <td colSpan={4}></td>
-                      <td style={{ color: 'var(--text-muted)' }}>Items Subtotal:</td>
-                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                        ₹{selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString('en-IN')}
-                      </td>
-                    </tr>
+                      {selectedOrder.discount > 0 && (
+                        <tr>
+                          <td colSpan={4}></td>
+                          <td style={{ color: 'var(--success)', fontWeight: '500' }}>
+                            Coupon Discount {selectedOrder.couponCode ? `(${selectedOrder.couponCode})` : ''}:
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--success)' }}>
+                            -₹{selectedOrder.discount.toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      )}
+                      {onlineDiscount > 0 && (
+                        <tr>
+                          <td colSpan={4}></td>
+                          <td style={{ color: 'var(--success)', fontWeight: '500' }}>
+                            Online Payment Discount (5%):
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--success)' }}>
+                            -₹{onlineDiscount.toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      )}
+                      {codCharge > 0 && (
+                        <tr>
+                          <td colSpan={4}></td>
+                          <td style={{ color: 'var(--danger)', fontWeight: '500' }}>
+                            Handling Charge:
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--danger)' }}>
+                            +₹{codCharge.toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      )}
                     <tr>
                       <td colSpan={4}></td>
                       <td style={{ color: 'var(--text-muted)' }}>Shipping Cost:</td>
@@ -493,26 +533,6 @@ const Orders = ({ token }) => {
                         ₹{(selectedOrder.shippingCost || 0).toLocaleString('en-IN')}
                       </td>
                     </tr>
-                    {(() => {
-                      const itemsSubtotal = selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                      const expectedTotal = itemsSubtotal + (selectedOrder.shippingCost || 0);
-                      const calculatedDiscount = Math.max(0, expectedTotal - selectedOrder.totalAmount);
-                      
-                      if (calculatedDiscount > 0) {
-                        return (
-                          <tr>
-                            <td colSpan={4}></td>
-                            <td style={{ color: 'var(--success)', fontWeight: '500' }}>
-                              Discount Applied {selectedOrder.couponCode ? `(${selectedOrder.couponCode})` : '(Promo/Coupon)'}:
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--success)' }}>
-                              -₹{calculatedDiscount.toLocaleString('en-IN')}
-                            </td>
-                          </tr>
-                        );
-                      }
-                      return null;
-                    })()}
                     <tr>
                       <td colSpan={4}></td>
                       <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Grand Total:</td>
@@ -653,7 +673,8 @@ const Orders = ({ token }) => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

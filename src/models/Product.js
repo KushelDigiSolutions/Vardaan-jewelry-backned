@@ -9,6 +9,7 @@ const productSchema = new mongoose.Schema({
   sku: { type: String, required: true, unique: true, index: true },
   inventory: { type: Number, required: true, default: 0, min: 0 },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
+  categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
   images: [{ type: String }],
   mainImage: { type: String, default: '' },
   wearableMedia: [

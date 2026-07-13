@@ -60,6 +60,18 @@ export const getInvoiceEmailTemplate = (order) => {
             </thead>
             <tbody>
               ${itemsHtml}
+              ${order.codCharge > 0 ? `
+              <tr class="total-row">
+                <td colspan="2" style="text-align: right; font-weight: 500; color: #dc2626;">Handling Charge:</td>
+                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString('en-IN')}</td>
+              </tr>
+              ` : ''}
+              ${order.onlineDiscount > 0 ? `
+              <tr class="total-row">
+                <td colspan="2" style="text-align: right; font-weight: 500; color: #07512E;">Online Payment Discount (5%):</td>
+                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString('en-IN')}</td>
+              </tr>
+              ` : ''}
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
                 <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString('en-IN')}</td>
@@ -339,6 +351,18 @@ export const getOrderPlacedEmailTemplate = (order) => {
             </thead>
             <tbody>
               ${itemsHtml}
+              ${order.codCharge > 0 ? `
+              <tr class="total-row">
+                <td colspan="2" style="text-align: right; font-weight: 500; color: #dc2626;">Handling Charge:</td>
+                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString('en-IN')}</td>
+              </tr>
+              ` : ''}
+              ${order.onlineDiscount > 0 ? `
+              <tr class="total-row">
+                <td colspan="2" style="text-align: right; font-weight: 500; color: #07512E;">Online Payment Discount (5%):</td>
+                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString('en-IN')}</td>
+              </tr>
+              ` : ''}
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
                 <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString('en-IN')}</td>
