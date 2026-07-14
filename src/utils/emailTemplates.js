@@ -1,11 +1,15 @@
 export const getInvoiceEmailTemplate = (order) => {
-  const itemsHtml = order.items.map(item => `
+  const itemsHtml = order.items
+    .map(
+      (item) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
   return `
     <!DOCTYPE html>
@@ -36,17 +40,17 @@ export const getInvoiceEmailTemplate = (order) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
           <p>Payment Invoice & Receipt</p>
         </div>
         <div class="content">
-          <p class="welcome-text">Dear ${order.user?.name || 'Customer'},</p>
+          <p class="welcome-text">Dear ${order.user?.name || "Customer"},</p>
           <p style="color: #555555; font-size: 15px; line-height: 1.7; margin: 0;">We have successfully received the payment for your order. Your transaction is complete and the order is confirmed for fulfillment. Here is your receipt summary:</p>
           
           <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
             <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Payment Method:</strong></td><td style="text-align: right; color: #303030; text-transform: uppercase;">${order.paymentMethod}</td></tr>
-            <tr><td style="color: #8C7547;"><strong>Transaction Date:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Transaction Date:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Payment Status:</strong></td><td style="text-align: right; font-weight: bold; color: #07512E; text-transform: uppercase;">PAID</td></tr>
           </table>
 
@@ -60,25 +64,33 @@ export const getInvoiceEmailTemplate = (order) => {
             </thead>
             <tbody>
               ${itemsHtml}
-              ${order.codCharge > 0 ? `
+              ${
+                order.codCharge > 0
+                  ? `
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500; color: #dc2626;">Handling Charge:</td>
-                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString("en-IN")}</td>
               </tr>
-              ` : ''}
-              ${order.onlineDiscount > 0 ? `
+              `
+                  : ""
+              }
+              ${
+                order.onlineDiscount > 0
+                  ? `
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500; color: #07512E;">Online Payment Discount (5%):</td>
-                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString("en-IN")}</td>
               </tr>
-              ` : ''}
+              `
+                  : ""
+              }
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
-                <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString("en-IN")}</td>
               </tr>
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Paid:</td>
-                <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString("en-IN")}</td>
               </tr>
             </tbody>
           </table>
@@ -95,7 +107,7 @@ export const getInvoiceEmailTemplate = (order) => {
           <p style="color: #555555; font-size: 15px; line-height: 1.7; margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -131,11 +143,11 @@ export const getStatusUpdateEmailTemplate = (order, title, message) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
           <p>Order Status Update</p>
         </div>
         <div class="content">
-          <p class="welcome-text">Dear ${order.user?.name || 'Customer'},</p>
+          <p class="welcome-text">Dear ${order.user?.name || "Customer"},</p>
           <p style="color: #555555; font-size: 15px; line-height: 1.7; margin: 0;">We wanted to update you on the progress of your order <b>#${order._id}</b>.</p>
           
           <div class="update-box">
@@ -143,7 +155,9 @@ export const getStatusUpdateEmailTemplate = (order, title, message) => {
             <p class="update-desc">${message}</p>
           </div>
 
-          ${order.tracking?.awb ? `
+          ${
+            order.tracking?.awb
+              ? `
           <div style="background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 20px; font-size: 14px; color: #555555; margin: 20px 0;">
             <p style="margin: 4px 0;"><strong>Shipping Carrier:</strong> ${order.tracking.carrier}</p>
             <p style="margin: 4px 0;"><strong>Tracking Number (AWB):</strong> <span style="font-family: monospace; font-weight: bold; color: #07512E;">${order.tracking.awb}</span></p>
@@ -151,12 +165,14 @@ export const getStatusUpdateEmailTemplate = (order, title, message) => {
               <a href="https://shiprocket.co/tracking/${order.tracking.awb}" target="_blank" style="background: #07512E; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; display: inline-block;">Track Your Package</a>
             </div>
           </div>
-          ` : ''}
+          `
+              : ""
+          }
 
           <p style="font-size: 14px; color: #8C7547; line-height: 1.6; margin: 20px 0 0 0;">You can check the dispatch details and track the shipment status anytime by logging into your Customer Dashboard.</p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -195,8 +211,7 @@ export const getWelcomeEmailTemplate = (name, otp) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
-          <p>More than a Jewel, a Blessing</p>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
         </div>
         <div class="content">
           <p class="greeting">Dear ${name},</p>
@@ -219,7 +234,7 @@ export const getWelcomeEmailTemplate = (name, otp) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -248,6 +263,7 @@ export const getForgotPasswordEmailTemplate = (name, otp) => {
         .otp-label { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #8C7547; margin-bottom: 10px; font-weight: bold; }
         .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: bold; color: #07512E; letter-spacing: 6px; margin: 0; }
         .expiry-note { font-size: 12px; color: #8A8A8A; margin-top: 10px; font-style: italic; }
+        .note-box { background: #F8F5EE; border-left: 4px solid #C4A46C; padding: 14px 16px; border-radius: 4px; margin-top: 20px; color: #555555; font-size: 14px; line-height: 1.6; }
         .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
         .footer p { margin: 4px 0; }
         .footer a { color: #07512E; text-decoration: none; }
@@ -256,12 +272,11 @@ export const getForgotPasswordEmailTemplate = (name, otp) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
-          <p>More than a Jewel, a Blessing</p>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
         </div>
         <div class="content">
           <p class="greeting">Dear ${name},</p>
-          <p class="lead-text">We received a request to reset the password for your Vardaan account. To proceed with the password reset, please use the verification code details below:</p>
+          <p class="lead-text">We received a request to reset the password for your Vardaan account. To continue securely, please use the verification code below:</p>
           
           <div class="otp-box">
             <div class="otp-label">Your Password Recovery Code</div>
@@ -269,11 +284,13 @@ export const getForgotPasswordEmailTemplate = (name, otp) => {
             <div class="expiry-note">This code is valid for the next 30 minutes. Please do not share this code with anyone.</div>
           </div>
 
-          <p class="lead-text">If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
+          <div class="note-box">
+            If you did not request this change, you can safely ignore this email. Your password will remain unchanged and no other action is required.
+          </div>
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -283,13 +300,17 @@ export const getForgotPasswordEmailTemplate = (name, otp) => {
 };
 
 export const getOrderPlacedEmailTemplate = (order) => {
-  const itemsHtml = order.items.map(item => `
+  const itemsHtml = order.items
+    .map(
+      (item) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
   return `
     <!DOCTYPE html>
@@ -328,17 +349,16 @@ export const getOrderPlacedEmailTemplate = (order) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
-          <p>More than a Jewel, a Blessing</p>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
         </div>
         <div class="content">
-          <p class="greeting">Dear ${order.user?.name || 'Valued Customer'},</p>
+          <p class="greeting">Dear ${order.user?.name || "Valued Customer"},</p>
           <p class="lead-text">Thank you for placing your order with Vardaan. We are delighted to assist you with your select jewelry collection. Here is a summary of your order details:</p>
           
           <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
             <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Payment Mode:</strong></td><td style="text-align: right; color: #303030;">${order.paymentMethod}</td></tr>
-            <tr><td style="color: #8C7547;"><strong>Date Placed:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Date Placed:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td></tr>
           </table>
 
           <table class="items-table">
@@ -351,25 +371,33 @@ export const getOrderPlacedEmailTemplate = (order) => {
             </thead>
             <tbody>
               ${itemsHtml}
-              ${order.codCharge > 0 ? `
+              ${
+                order.codCharge > 0
+                  ? `
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500; color: #dc2626;">Handling Charge:</td>
-                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString("en-IN")}</td>
               </tr>
-              ` : ''}
-              ${order.onlineDiscount > 0 ? `
+              `
+                  : ""
+              }
+              ${
+                order.onlineDiscount > 0
+                  ? `
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500; color: #07512E;">Online Payment Discount (5%):</td>
-                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString("en-IN")}</td>
               </tr>
-              ` : ''}
+              `
+                  : ""
+              }
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
-                <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString("en-IN")}</td>
               </tr>
               <tr class="total-row">
                 <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Amount:</td>
-                <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString('en-IN')}</td>
+                <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString("en-IN")}</td>
               </tr>
             </tbody>
           </table>
@@ -386,7 +414,7 @@ export const getOrderPlacedEmailTemplate = (order) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -395,14 +423,22 @@ export const getOrderPlacedEmailTemplate = (order) => {
   `;
 };
 
-export const getReturnRequestedEmailTemplate = (order, replacementRequest, name) => {
-  const itemsHtml = replacementRequest.items.map(item => `
+export const getReturnRequestedEmailTemplate = (
+  order,
+  replacementRequest,
+  name,
+) => {
+  const itemsHtml = replacementRequest.items
+    .map(
+      (item) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
   return `
     <!DOCTYPE html>
@@ -434,11 +470,11 @@ export const getReturnRequestedEmailTemplate = (order, replacementRequest, name)
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
           <p>Replacement Request Confirmation</p>
         </div>
         <div class="content">
-          <p class="greeting">Dear ${name || 'Customer'},</p>
+          <p class="greeting">Dear ${name || "Customer"},</p>
           <p class="lead-text">We have received your replacement request for Order <b>#${order._id}</b>. Our concierge team is currently reviewing your ticket. Here are the details of the request:</p>
           
           <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
@@ -465,7 +501,7 @@ export const getReturnRequestedEmailTemplate = (order, replacementRequest, name)
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -474,16 +510,30 @@ export const getReturnRequestedEmailTemplate = (order, replacementRequest, name)
   `;
 };
 
-export const getReturnStatusUpdateEmailTemplate = (order, replacementRequest, name) => {
-  const itemsHtml = replacementRequest.items.map(item => `
+export const getReturnStatusUpdateEmailTemplate = (
+  order,
+  replacementRequest,
+  name,
+) => {
+  const itemsHtml = replacementRequest.items
+    .map(
+      (item) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString('en-IN')}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
-  const statusColor = replacementRequest.status === 'approved' || replacementRequest.status === 'replaced' ? '#07512E' : replacementRequest.status === 'rejected' ? '#c53030' : '#b7791f';
+  const statusColor =
+    replacementRequest.status === "approved" ||
+    replacementRequest.status === "replaced"
+      ? "#07512E"
+      : replacementRequest.status === "rejected"
+        ? "#c53030"
+        : "#b7791f";
 
   return `
     <!DOCTYPE html>
@@ -516,11 +566,11 @@ export const getReturnStatusUpdateEmailTemplate = (order, replacementRequest, na
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
           <p>Replacement Status Update</p>
         </div>
         <div class="content">
-          <p class="greeting">Dear ${name || 'Customer'},</p>
+          <p class="greeting">Dear ${name || "Customer"},</p>
           <p class="lead-text">There has been an update regarding your replacement request for Order <b>#${order._id}</b>.</p>
           
           <div class="status-box">
@@ -547,7 +597,7 @@ export const getReturnStatusUpdateEmailTemplate = (order, replacementRequest, na
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -583,8 +633,7 @@ export const getContactThankYouEmailTemplate = (name, subject, message) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
-          <p>More than a Jewel, a Blessing</p>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
         </div>
         <div class="content">
           <p class="greeting">Dear ${name},</p>
@@ -600,7 +649,7 @@ export const getContactThankYouEmailTemplate = (name, subject, message) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Concierge Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -610,10 +659,10 @@ export const getContactThankYouEmailTemplate = (name, subject, message) => {
 };
 
 export const getAccountStatusEmailTemplate = (name, isActive) => {
-  const statusTitle = isActive ? 'Account Activated' : 'Account Suspended';
-  const statusMessage = isActive 
-    ? 'We are pleased to inform you that your Vardaan account has been successfully activated. You can now log in, browse our fine jewelry collection, place orders, and manage your account details.'
-    : 'We regret to inform you that your Vardaan account has been temporarily suspended/deactivated. If you believe this is a misunderstanding or wish to appeal this decision, please contact our concierge support desk.';
+  const statusTitle = isActive ? "Account Activated" : "Account Suspended";
+  const statusMessage = isActive
+    ? "We are pleased to inform you that your Vardaan account has been successfully activated. You can now log in, browse our fine jewelry collection, place orders, and manage your account details."
+    : "We regret to inform you that your Vardaan account has been temporarily suspended/deactivated. If you believe this is a misunderstanding or wish to appeal this decision, please contact our concierge support desk.";
 
   return `
     <!DOCTYPE html>
@@ -632,7 +681,7 @@ export const getAccountStatusEmailTemplate = (name, isActive) => {
         .lead-text { color: #555555; font-size: 15px; line-height: 1.7; margin-bottom: 25px; }
         .status-box { background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 25px; text-align: center; margin: 30px 0; }
         .status-label { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #8C7547; margin-bottom: 10px; font-weight: bold; }
-        .status-title { font-size: 24px; font-weight: bold; color: ${isActive ? '#07512E' : '#dc2626'}; letter-spacing: 1px; margin: 0; }
+        .status-title { font-size: 24px; font-weight: bold; color: ${isActive ? "#07512E" : "#dc2626"}; letter-spacing: 1px; margin: 0; }
         .footer { background: #FAF9F6; padding: 25px; text-align: center; font-size: 12px; color: #8C7547; border-top: 1px solid #F0ECE3; }
         .footer p { margin: 4px 0; }
         .footer a { color: #07512E; text-decoration: none; }
@@ -641,8 +690,7 @@ export const getAccountStatusEmailTemplate = (name, isActive) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>VARDAAN</h1>
-          <p>More than a Jewel, a Blessing</p>
+          <img src="https://res.cloudinary.com/dxlykgx6w/image/upload/v1783322584/Vardaan_jewel_logo-removebg-preview_q2mgqj.png" alt="VARDAAN" style="height:80px; object-fit:contain; display:block; margin:0 auto 8px;" />
         </div>
         <div class="content">
           <p class="greeting">Dear ${name},</p>
@@ -655,16 +703,20 @@ export const getAccountStatusEmailTemplate = (name, isActive) => {
 
           <p class="lead-text">${statusMessage}</p>
           
-          ${isActive ? `
+          ${
+            isActive
+              ? `
           <p class="lead-text">To log in, please visit our website and sign in with your registered credentials.</p>
-          ` : `
+          `
+              : `
           <p class="lead-text">If you have any pending orders, they may be put on hold or cancelled. For further clarification, please get in touch with our support representatives.</p>
-          `}
+          `
+          }
 
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Fine Jewelry Store &bull; New Delhi, India</p>
+          <p>Vardaan Jewels &bull; New Delhi, India</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -672,4 +724,3 @@ export const getAccountStatusEmailTemplate = (name, isActive) => {
     </html>
   `;
 };
-
