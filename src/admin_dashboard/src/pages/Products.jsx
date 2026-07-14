@@ -1096,7 +1096,7 @@ const Products = ({ token }) => {
             </div> */}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px', paddingBefore: '16px', borderTop: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px', paddingBefore: '16px',  }}>
             <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
             <button type="submit" disabled={submitting || mainImageUploading || wearableMediaUploading} className="btn btn-primary">
               {submitting ? 'Saving...' : (currentProduct ? 'Save Adjustments' : 'Add to Catalog')}
