@@ -107,7 +107,7 @@ export const getInvoiceEmailTemplate = (order) => {
           <p style="color: #555555; font-size: 15px; line-height: 1.7; margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -172,7 +172,7 @@ export const getStatusUpdateEmailTemplate = (order, title, message) => {
           <p style="font-size: 14px; color: #8C7547; line-height: 1.6; margin: 20px 0 0 0;">You can check the dispatch details and track the shipment status anytime by logging into your Customer Dashboard.</p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -234,7 +234,7 @@ export const getWelcomeEmailTemplate = (name, otp) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -290,7 +290,7 @@ export const getForgotPasswordEmailTemplate = (name, otp) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -414,7 +414,7 @@ export const getOrderPlacedEmailTemplate = (order) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -501,7 +501,7 @@ export const getReturnRequestedEmailTemplate = (
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -597,7 +597,7 @@ export const getReturnStatusUpdateEmailTemplate = (
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -649,7 +649,7 @@ export const getContactThankYouEmailTemplate = (name, subject, message) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Concierge Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
@@ -716,7 +716,7 @@ export const getAccountStatusEmailTemplate = (name, isActive) => {
           <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
-          <p>Vardaan Jewels &bull; New Delhi, India</p>
+          <p>Vardaan Jewels</p>
           <p style="margin-top: 6px;">&copy; ${new Date().getFullYear()} Vardaan E-commerce. All rights reserved.</p>
         </div>
       </div>
