@@ -594,7 +594,7 @@ const Orders = ({ token }) => {
                     </select>
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className="btn btn-primary"
                       style={{ marginTop: '4px', justifyContent: 'center' }}
                       disabled={actionLoading || tempPaymentStatus === selectedOrder.paymentStatus}
                       onClick={() => handlePaymentStatusChange(tempPaymentStatus)}
@@ -624,9 +624,9 @@ const Orders = ({ token }) => {
                           value={shippingCarrier}
                           onChange={(e) => setShippingCarrier(e.target.value)}
                         >
-                          <option value="Delhivery">Delhivery Express</option>
-                          <option value="Shiprocket">Shiprocket Cargo</option>
-                          <option value="Blue Dart">Blue Dart Premium</option>
+                          {/* <option value="Delhivery">Delhivery Express</option> */}
+                          <option value="Shiprocket">Shiprocket</option>
+                          {/* <option value="Blue Dart">Blue Dart Premium</option> */}
                         </select>
                       </div>
                       <button
