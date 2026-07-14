@@ -43,6 +43,7 @@ const Products = ({ token }) => {
     salePrice: '',
     inventory: '',
     category: '',
+    categories: [],
     isActive: true,
     images: '', // Comma separated URLs
     mainImage: '',
@@ -149,6 +150,7 @@ const Products = ({ token }) => {
       salePrice: '',
       inventory: '',
       category: categories[0]?._id || '',
+      categories: [],
       isActive: true,
       images: '',
       mainImage: '',
@@ -170,6 +172,7 @@ const Products = ({ token }) => {
       salePrice: product.salePrice || '',
       inventory: product.inventory,
       category: product.category?._id || '',
+      categories: product.categories ? product.categories.map(c => typeof c === 'object' ? c._id : c) : (product.category ? [product.category._id || product.category] : []),
       isActive: product.isActive,
       images: product.images ? product.images.join(', ') : '',
       mainImage: product.mainImage || '',
@@ -645,30 +648,83 @@ const Products = ({ token }) => {
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>Category Assignment</label>
-                <select
-                  className="form-control"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            <div className="form-group">
+              <label style={{ fontWeight: '600', color: 'var(--text-color)', marginBottom: '8px', display: 'block' }}>Category Assignment (Multiple Selection)</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      categories: categories.map(c => c._id)
+                    }));
+                  }}
+                  style={{ padding: '6px 12px', fontSize: '12px', height: 'auto', minHeight: 'unset', width: 'auto' }}
                 >
-                  {categories.map(c => (
-                    <option key={c._id} value={c._id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Listing Status</label>
-                <select
-                  className="form-control"
-                  value={formData.isActive ? 'true' : 'false'}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      categories: []
+                    }));
+                  }}
+                  style={{ padding: '6px 12px', fontSize: '12px', height: 'auto', minHeight: 'unset', width: 'auto' }}
                 >
-                  <option value="true">Active Listing</option>
-                  <option value="false">Hidden / Inactive</option>
-                </select>
+                  Deselect All
+                </button>
               </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '12px',
+                padding: '16px',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                backgroundColor: 'rgba(0,0,0,0.01)',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+              }}>
+                {categories.map(c => {
+                  const isChecked = (formData.categories || []).includes(c._id);
+                  return (
+                    <label key={c._id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: 'var(--text-color)', fontWeight: 'normal', margin: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const updated = e.target.checked
+                            ? [...(formData.categories || []), c._id]
+                            : (formData.categories || []).filter(id => id !== c._id);
+                          setFormData(prev => ({
+                            ...prev,
+                            categories: updated
+                          }));
+                        }}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#07512E' }}
+                      />
+                      <span>{c.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Listing Status</label>
+              <select
+                className="form-control"
+                value={formData.isActive ? 'true' : 'false'}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
+              >
+                <option value="true">Active Listing</option>
+                <option value="false">Hidden / Inactive</option>
+              </select>
             </div>
 
             {/* Main Product Image Upload Section */}

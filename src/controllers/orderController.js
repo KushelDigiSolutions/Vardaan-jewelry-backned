@@ -105,6 +105,17 @@ export const checkoutOrder = async (req, res, next) => {
       totalAmount = Math.max(0, totalAmount - discount);
     }
 
+    // Apply online discount or COD charge
+    let onlineDiscount = 0;
+    let codCharge = 0;
+    if (paymentMethod === 'COD') {
+      codCharge = 100;
+      totalAmount += codCharge;
+    } else {
+      onlineDiscount = Math.round(totalAmount * 0.05);
+      totalAmount = Math.max(0, totalAmount - onlineDiscount);
+    }
+
     // Configure shipping cost
     let shippingCost = 0;
     if (shippingMethod === 'Express Delivery') {
@@ -127,6 +138,8 @@ export const checkoutOrder = async (req, res, next) => {
       totalAmount,
       couponCode: couponCode ? couponCode.toUpperCase() : '',
       discount,
+      codCharge,
+      onlineDiscount,
       stockDeducted: false,
       tracking: {
         statusHistory: [{ status: 'pending', message: 'Awaiting checkout completion and payment verification' }]
