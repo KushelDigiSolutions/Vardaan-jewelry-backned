@@ -62,7 +62,7 @@ const uploadToCloudinary = async (req, res, next) => {
         if (!isVideo) {
           uploadOptions.allowed_formats = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
           uploadOptions.transformation = [
-            { width: 800, height: 800, crop: 'limit', quality: 'auto' }
+            { width: 1920, height: 1920, crop: 'limit', quality: 'auto' }
           ];
         }
 
