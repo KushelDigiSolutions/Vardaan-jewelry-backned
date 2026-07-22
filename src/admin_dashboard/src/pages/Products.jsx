@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, FileSpreadsheet, Download, Edit2, Trash2, X, PlusCircle, MinusCircle, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -20,7 +20,38 @@ const Products = ({ token }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortOption, setSortOption] = useState('newest');
-  
+  const [activeCategoryPopupId, setActiveCategoryPopupId] = useState(null);
+
+  // Group and sort categories hierarchically
+  const categoryTree = useMemo(() => {
+    const categoryMap = {};
+    categories.forEach(cat => {
+      categoryMap[cat._id] = cat;
+    });
+
+    const rootCategories = [];
+    const childrenMap = {};
+
+    categories.forEach(cat => {
+      const parentId = cat.parentCategory?._id || cat.parentCategory;
+      if (!parentId || !categoryMap[parentId]) {
+        rootCategories.push(cat);
+      } else {
+        if (!childrenMap[parentId]) {
+          childrenMap[parentId] = [];
+        }
+        childrenMap[parentId].push(cat);
+      }
+    });
+
+    rootCategories.sort((a, b) => a.name.localeCompare(b.name));
+    Object.keys(childrenMap).forEach(pid => {
+      childrenMap[pid].sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+    return { rootCategories, childrenMap };
+  }, [categories]);
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -392,6 +423,7 @@ const Products = ({ token }) => {
 
       const payload = {
         ...formData,
+        category: formData.categories.length > 0 ? formData.categories[0] : formData.category,
         price: Number(formData.price),
         salePrice: formData.salePrice ? Number(formData.salePrice) : 0,
         inventory: Number(formData.inventory),
@@ -679,37 +711,75 @@ const Products = ({ token }) => {
                 </button>
               </div>
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
                 padding: '16px',
                 border: '1px solid var(--border-color)',
                 borderRadius: '8px',
-                maxHeight: '200px',
+                maxHeight: '300px',
                 overflowY: 'auto',
                 backgroundColor: 'rgba(0,0,0,0.01)',
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
               }}>
-                {categories.map(c => {
-                  const isChecked = (formData.categories || []).includes(c._id);
+                {categoryTree.rootCategories.map(parent => {
+                  const isParentChecked = (formData.categories || []).includes(parent._id);
+                  const children = categoryTree.childrenMap[parent._id] || [];
                   return (
-                    <label key={c._id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: 'var(--text-color)', fontWeight: 'normal', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={(e) => {
-                          const updated = e.target.checked
-                            ? [...(formData.categories || []), c._id]
-                            : (formData.categories || []).filter(id => id !== c._id);
-                          setFormData(prev => ({
-                            ...prev,
-                            categories: updated
-                          }));
-                        }}
-                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#07512E' }}
-                      />
-                      <span>{c.name}</span>
-                    </label>
+                    <div key={parent._id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {/* Parent Category Row */}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                        <input
+                          type="checkbox"
+                          checked={isParentChecked}
+                          onChange={(e) => {
+                            const updated = e.target.checked
+                              ? [...(formData.categories || []), parent._id]
+                              : (formData.categories || []).filter(id => id !== parent._id);
+                            setFormData(prev => ({
+                              ...prev,
+                              categories: updated
+                            }));
+                          }}
+                          style={{ cursor: 'pointer', width: '18px', height: '18px', accentColor: '#07512E' }}
+                        />
+                        <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text-color)' }}>{parent.name}</span>
+                      </label>
+                      {/* Child Categories (Indented) */}
+                      {children.length > 0 && (
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                          gap: '8px', 
+                          paddingLeft: '24px', 
+                          borderLeft: '2px solid rgba(7, 81, 46, 0.15)',
+                          marginLeft: '8px'
+                        }}>
+                          {children.map(child => {
+                            const isChildChecked = (formData.categories || []).includes(child._id);
+                            return (
+                              <label key={child._id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-color)', fontWeight: 'normal', margin: 0 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChildChecked}
+                                  onChange={(e) => {
+                                    const updated = e.target.checked
+                                      ? [...(formData.categories || []), child._id]
+                                      : (formData.categories || []).filter(id => id !== child._id);
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      categories: updated
+                                    }));
+                                  }}
+                                  style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#07512E' }}
+                                />
+                                <span>{child.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -1130,8 +1200,15 @@ const Products = ({ token }) => {
             onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
           >
             <option value="">All Categories</option>
-            {categories.map(c => (
-              <option key={c._id} value={c._id}>{c.name}</option>
+            {categoryTree.rootCategories.map(parent => (
+              <React.Fragment key={parent._id}>
+                <option value={parent._id}>{parent.name}</option>
+                {(categoryTree.childrenMap[parent._id] || []).map(child => (
+                  <option key={child._id} value={child._id}>
+                    &nbsp;&nbsp;— {child.name}
+                  </option>
+                ))}
+              </React.Fragment>
             ))}
           </select>
 
@@ -1205,7 +1282,99 @@ const Products = ({ token }) => {
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SKU: {p.sku}</span>
                       </div>
                     </td>
-                    <td><span className="badge text-black bg-gray-300">{p.category?.name || 'Unassigned'}</span></td>
+                    <td>
+                      {(() => {
+                        const cats = p.categories || [];
+                        if (cats.length === 0) {
+                          return <span className="badge text-black bg-gray-300">{p.category?.name || 'Unassigned'}</span>;
+                        }
+                        
+                        const firstCatName = cats[0]?.name || p.category?.name || 'Unassigned';
+                        if (cats.length <= 1) {
+                          return <span className="badge text-black bg-gray-300">{firstCatName}</span>;
+                        }
+
+                        const remainingCount = cats.length - 1;
+                        const isOpen = activeCategoryPopupId === p._id;
+
+                        return (
+                          <div style={{ position: 'relative', display: 'inline-block' }}>
+                            <span 
+                              className="badge text-black bg-gray-300" 
+                              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', userSelect: 'none' }} 
+                              onClick={() => setActiveCategoryPopupId(p._id)}
+                            >
+                              {firstCatName} <span style={{ color: '#07512E', fontWeight: 'bold' }}>+ {remainingCount} more</span>
+                            </span>
+                            {isOpen && (
+                              <>
+                                <div 
+                                  style={{
+                                    position: 'fixed',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    zIndex: 99,
+                                    background: 'transparent'
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveCategoryPopupId(null);
+                                  }}
+                                />
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '100%',
+                                  left: '0',
+                                  zIndex: 100,
+                                  backgroundColor: '#ffffff',
+                                  border: '1px solid var(--border-color)',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                  padding: '12px',
+                                  minWidth: '200px',
+                                  marginTop: '6px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '8px',
+                                  textAlign: 'left'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                                    <span style={{ fontWeight: 'bold', fontSize: '12px', color: 'var(--text-color)' }}>All Categories</span>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveCategoryPopupId(null);
+                                      }} 
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        fontSize: '16px',
+                                        fontWeight: 'bold',
+                                        padding: '0 4px',
+                                        lineHeight: 1
+                                      }}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
+                                    {cats.map((cat, idx) => (
+                                      <span key={cat._id || idx} style={{ fontSize: '12px', color: 'var(--text-color)', display: 'block' }}>
+                                        • {cat.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td style={{ fontWeight: '500' }}>₹{p.price.toLocaleString('en-IN')}</td>
                     <td style={{ fontWeight: '500', color: p.salePrice > 0 ? '#10b981' : 'var(--text-dark)' }}>
                       {p.salePrice > 0 ? `₹${p.salePrice.toLocaleString('en-IN')}` : '-'}

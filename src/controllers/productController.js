@@ -49,9 +49,40 @@ export const getProducts = async (req, res, next) => {
     }
 
     if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = Number(minPrice);
-      if (maxPrice) query.price.$lte = Number(maxPrice);
+      const salePriceCond = { $gt: 0 };
+      if (minPrice) salePriceCond.$gte = Number(minPrice);
+      if (maxPrice) salePriceCond.$lte = Number(maxPrice);
+
+      const priceCond = {};
+      if (minPrice) priceCond.$gte = Number(minPrice);
+      if (maxPrice) priceCond.$lte = Number(maxPrice);
+
+      const priceFilterOr = [
+        {
+          salePrice: salePriceCond
+        },
+        {
+          $and: [
+            {
+              $or: [
+                { salePrice: { $exists: false } },
+                { salePrice: 0 },
+                { salePrice: null }
+              ]
+            },
+            {
+              price: priceCond
+            }
+          ]
+        }
+      ];
+
+      if (query.$or) {
+        query.$and = query.$and || [];
+        query.$and.push({ $or: priceFilterOr });
+      } else {
+        query.$or = priceFilterOr;
+      }
     }
 
     // Apply sorting
@@ -170,7 +201,7 @@ export const createProduct = async (req, res, next) => {
     }
 
     let resolvedCategory = category;
-    if (!resolvedCategory && parsedCategories.length > 0) {
+    if (parsedCategories.length > 0) {
       resolvedCategory = parsedCategories[0];
     } else if (resolvedCategory && parsedCategories.length === 0) {
       parsedCategories = [resolvedCategory];
