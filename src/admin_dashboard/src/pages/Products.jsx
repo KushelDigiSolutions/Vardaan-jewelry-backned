@@ -1,15 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, FileSpreadsheet, Download, Edit2, Trash2, X, PlusCircle, MinusCircle, FileText } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Search,
+  Plus,
+  FileSpreadsheet,
+  Download,
+  Edit2,
+  Trash2,
+  X,
+  PlusCircle,
+  MinusCircle,
+  FileText,
+} from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   formatProductsForExport,
   parseImportRows,
   exportToExcel,
   exportToCSV,
-  downloadTemplate
-} from '../utils/excelHelper';
-import { useToast } from '../context/ToastContext.jsx';
-import { useLoader } from '../context/LoaderContext.jsx';
+  downloadTemplate,
+} from "../utils/excelHelper";
+import { useToast } from "../context/ToastContext.jsx";
+import { useLoader } from "../context/LoaderContext.jsx";
 
 const Products = ({ token }) => {
   const toast = useToast();
@@ -17,22 +28,22 @@ const Products = ({ token }) => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [sortOption, setSortOption] = useState('newest');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [sortOption, setSortOption] = useState("newest");
   const [activeCategoryPopupId, setActiveCategoryPopupId] = useState(null);
 
   // Group and sort categories hierarchically
   const categoryTree = useMemo(() => {
     const categoryMap = {};
-    categories.forEach(cat => {
+    categories.forEach((cat) => {
       categoryMap[cat._id] = cat;
     });
 
     const rootCategories = [];
     const childrenMap = {};
 
-    categories.forEach(cat => {
+    categories.forEach((cat) => {
       const parentId = cat.parentCategory?._id || cat.parentCategory;
       if (!parentId || !categoryMap[parentId]) {
         rootCategories.push(cat);
@@ -45,7 +56,7 @@ const Products = ({ token }) => {
     });
 
     rootCategories.sort((a, b) => a.name.localeCompare(b.name));
-    Object.keys(childrenMap).forEach(pid => {
+    Object.keys(childrenMap).forEach((pid) => {
       childrenMap[pid].sort((a, b) => a.name.localeCompare(b.name));
     });
 
@@ -60,46 +71,46 @@ const Products = ({ token }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null); // null means adding new
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importJson, setImportJson] = useState('');
-  const [importStatus, setImportStatus] = useState('');
+  const [importJson, setImportJson] = useState("");
+  const [importStatus, setImportStatus] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
-    name: '',
-    sku: '',
-    description: '',
-    price: '',
-    salePrice: '',
-    inventory: '',
-    category: '',
+    name: "",
+    sku: "",
+    description: "",
+    price: "",
+    salePrice: "",
+    inventory: "",
+    category: "",
     categories: [],
     isActive: true,
-    images: '', // Comma separated URLs
-    mainImage: '',
+    images: "", // Comma separated URLs
+    mainImage: "",
     wearableMedia: [], // Array of {url, mediaType}
     attributes: [], // Array of {key, value}
     variants: [], // Array of variants
-    sizes: []
+    sizes: [],
   });
-  const [newAttrKey, setNewAttrKey] = useState('');
-  const [newAttrVal, setNewAttrVal] = useState('');
+  const [newAttrKey, setNewAttrKey] = useState("");
+  const [newAttrVal, setNewAttrVal] = useState("");
   const [newSize, setNewSize] = useState({
-    size: '',
-    price: '',
-    inventory: ''
+    size: "",
+    price: "",
+    inventory: "",
   });
   const [newVariant, setNewVariant] = useState({
-    karat: '18Kt Gold',
-    metalColor: 'White Gold',
-    metalType: 'Gold',
-    grossWeight: '',
-    netWeight: '',
-    size: '',
-    price: '',
-    salePrice: '',
-    inventory: ''
+    karat: "18Kt Gold",
+    metalColor: "White Gold",
+    metalType: "Gold",
+    grossWeight: "",
+    netWeight: "",
+    size: "",
+    price: "",
+    salePrice: "",
+    inventory: "",
   });
 
   const fetchProducts = async () => {
@@ -121,7 +132,7 @@ const Products = ({ token }) => {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories');
+      const res = await fetch("/api/categories");
       const data = await res.json();
       if (data.success) setCategories(data.data);
     } catch (err) {
@@ -142,30 +153,35 @@ const Products = ({ token }) => {
 
   useEffect(() => {
     // Don't search if input is only whitespace
-    if (searchTerm !== '' && searchTerm.trim() === '') return;
+    if (searchTerm !== "" && searchTerm.trim() === "") return;
 
     setPage(1);
     fetchProducts();
   }, [searchTerm]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this product from the catalog?')) return;
-    showLoader('Removing product...');
+    if (
+      !window.confirm(
+        "Are you sure you want to remove this product from the catalog?",
+      )
+    )
+      return;
+    showLoader("Removing product...");
     try {
       const res = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(data.message || 'Product removed successfully!');
+        toast.success(data.message || "Product removed successfully!");
         fetchProducts();
       } else {
-        toast.error(data.message || 'Failed to remove product');
+        toast.error(data.message || "Failed to remove product");
       }
     } catch (err) {
       console.error(err);
-      toast.error('Error removing product');
+      toast.error("Error removing product");
     } finally {
       hideLoader();
     }
@@ -174,21 +190,21 @@ const Products = ({ token }) => {
   const openAddModal = () => {
     setCurrentProduct(null);
     setFormData({
-      name: '',
-      sku: '',
-      description: '',
-      price: '',
-      salePrice: '',
-      inventory: '',
-      category: categories[0]?._id || '',
+      name: "",
+      sku: "",
+      description: "",
+      price: "",
+      salePrice: "",
+      inventory: "",
+      category: categories[0]?._id || "",
       categories: [],
       isActive: true,
-      images: '',
-      mainImage: '',
+      images: "",
+      mainImage: "",
       wearableMedia: [],
       attributes: [],
       variants: [],
-      sizes: []
+      sizes: [],
     });
     setIsEditing(true);
   };
@@ -200,32 +216,39 @@ const Products = ({ token }) => {
       sku: product.sku,
       description: product.description,
       price: product.price,
-      salePrice: product.salePrice || '',
+      salePrice: product.salePrice || "",
       inventory: product.inventory,
-      category: product.category?._id || '',
-      categories: product.categories ? product.categories.map(c => typeof c === 'object' ? c._id : c) : (product.category ? [product.category._id || product.category] : []),
+      category: product.category?._id || "",
+      categories: product.categories
+        ? product.categories.map((c) => (typeof c === "object" ? c._id : c))
+        : product.category
+          ? [product.category._id || product.category]
+          : [],
       isActive: product.isActive,
-      images: product.images ? product.images.join(', ') : '',
-      mainImage: product.mainImage || '',
+      images: product.images ? product.images.join(", ") : "",
+      mainImage: product.mainImage || "",
       wearableMedia: product.wearableMedia || [],
       attributes: product.attributes || [],
       variants: product.variants || [],
-      sizes: product.sizes || []
+      sizes: product.sizes || [],
     });
     setIsEditing(true);
   };
 
   const handleAddAttribute = () => {
     if (!newAttrKey || !newAttrVal) {
-      toast.warning('Please fill out both Key and Value to add an attribute!');
+      toast.warning("Please fill out both Key and Value to add an attribute!");
       return;
     }
     setFormData({
       ...formData,
-      attributes: [...formData.attributes, { key: newAttrKey, value: newAttrVal }]
+      attributes: [
+        ...formData.attributes,
+        { key: newAttrKey, value: newAttrVal },
+      ],
     });
-    setNewAttrKey('');
-    setNewAttrVal('');
+    setNewAttrKey("");
+    setNewAttrVal("");
   };
 
   const handleRemoveAttribute = (idx) => {
@@ -235,69 +258,71 @@ const Products = ({ token }) => {
 
   const handleAddVariant = () => {
     if (!newVariant.size || !newVariant.price || !newVariant.inventory) {
-      toast.warning('Please fill out Size, Price, and Stock level to add a variant!');
+      toast.warning(
+        "Please fill out Size, Price, and Stock level to add a variant!",
+      );
       return;
     }
-    const sizes = newVariant.size.split(',').map(s => s.trim()).filter(Boolean);
+    const sizes = newVariant.size
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (sizes.length === 0) {
-      toast.warning('Please enter a valid size or comma-separated sizes.');
+      toast.warning("Please enter a valid size or comma-separated sizes.");
       return;
     }
-    const newVariantsList = sizes.map(sizeVal => ({
+    const newVariantsList = sizes.map((sizeVal) => ({
       karat: newVariant.karat,
       metalColor: newVariant.metalColor,
-      metalType: newVariant.metalType || 'Gold',
-      grossWeight: newVariant.grossWeight || '',
-      netWeight: newVariant.netWeight || '',
+      metalType: newVariant.metalType || "Gold",
+      grossWeight: newVariant.grossWeight || "",
+      netWeight: newVariant.netWeight || "",
       size: sizeVal,
       price: Number(newVariant.price),
       salePrice: newVariant.salePrice ? Number(newVariant.salePrice) : 0,
-      inventory: Number(newVariant.inventory)
+      inventory: Number(newVariant.inventory),
     }));
     setFormData({
       ...formData,
-      variants: [
-        ...(formData.variants || []),
-        ...newVariantsList
-      ]
+      variants: [...(formData.variants || []), ...newVariantsList],
     });
     setNewVariant({
       ...newVariant,
-      size: '',
-      price: '',
-      salePrice: '',
-      inventory: '',
-      grossWeight: '',
-      netWeight: ''
+      size: "",
+      price: "",
+      salePrice: "",
+      inventory: "",
+      grossWeight: "",
+      netWeight: "",
     });
   };
 
   const handleAddSize = () => {
     if (!newSize.size) {
-      toast.warning('Please fill out the size field.');
+      toast.warning("Please fill out the size field.");
       return;
     }
-    const sizes = newSize.size.split(',').map(s => s.trim()).filter(Boolean);
+    const sizes = newSize.size
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (sizes.length === 0) {
-      toast.warning('Please enter a valid size.');
+      toast.warning("Please enter a valid size.");
       return;
     }
-    const newSizesList = sizes.map(sizeVal => ({
+    const newSizesList = sizes.map((sizeVal) => ({
       size: sizeVal,
-      price: newSize.price !== '' ? Number(newSize.price) : null,
-      inventory: newSize.inventory !== '' ? Number(newSize.inventory) : 0
+      price: newSize.price !== "" ? Number(newSize.price) : null,
+      inventory: newSize.inventory !== "" ? Number(newSize.inventory) : 0,
     }));
     setFormData({
       ...formData,
-      sizes: [
-        ...(formData.sizes || []),
-        ...newSizesList
-      ]
+      sizes: [...(formData.sizes || []), ...newSizesList],
     });
     setNewSize({
-      size: '',
-      price: '',
-      inventory: ''
+      size: "",
+      price: "",
+      inventory: "",
     });
   };
 
@@ -312,32 +337,42 @@ const Products = ({ token }) => {
   const handleMainImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // File size validation (50MB limit)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(
+        `Image size must be less than 50MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      );
+      return;
+    }
+
     setMainImageUploading(true);
-    showLoader('Uploading main image...');
+    showLoader("Uploading main image...");
     const uploadData = new FormData();
-    uploadData.append('file', file);
+    uploadData.append("file", file);
 
     try {
-      const res = await fetch('/api/products/upload', {
-        method: 'POST',
+      const res = await fetch("/api/products/upload", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: uploadData
+        body: uploadData,
       });
       const data = await res.json();
       if (data.success && data.files && data.files.length > 0) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          mainImage: data.files[0].url
+          mainImage: data.files[0].url,
         }));
-        toast.success('Main image uploaded successfully!');
+        toast.success("Main image uploaded successfully!");
       } else {
-        toast.error(data.message || 'Upload failed');
+        toast.error(data.message || "Upload failed");
       }
     } catch (err) {
       console.error(err);
-      toast.error('Error uploading file');
+      toast.error("Error uploading file");
     } finally {
       setMainImageUploading(false);
       hideLoader();
@@ -347,43 +382,55 @@ const Products = ({ token }) => {
   const handleWearableMediaUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
+
+    // File size validation (50MB limit per file)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    const oversizedFiles = files.filter((f) => f.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles
+        .map((f) => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`)
+        .join(", ");
+      toast.error(`Some files exceed 50MB limit:\n${fileNames}`);
+      return;
+    }
+
     setWearableMediaUploading(true);
-    showLoader('Uploading details media...');
+    showLoader("Uploading details media...");
 
     try {
-      const uploadPromises = files.map(file => {
+      const uploadPromises = files.map((file) => {
         const uploadData = new FormData();
-        uploadData.append('file', file);
-        return fetch('/api/products/upload', {
-          method: 'POST',
+        uploadData.append("file", file);
+        return fetch("/api/products/upload", {
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
-          body: uploadData
-        }).then(res => res.json());
+          body: uploadData,
+        }).then((res) => res.json());
       });
 
       const results = await Promise.all(uploadPromises);
       const newMedia = [];
-      results.forEach(data => {
+      results.forEach((data) => {
         if (data.success && data.files) {
-          data.files.forEach(f => {
+          data.files.forEach((f) => {
             newMedia.push({
               url: f.url,
-              mediaType: f.mediaType
+              mediaType: f.mediaType,
             });
           });
         }
       });
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        wearableMedia: [...(prev.wearableMedia || []), ...newMedia]
+        wearableMedia: [...(prev.wearableMedia || []), ...newMedia],
       }));
-      toast.success('Media uploaded successfully!');
+      toast.success("Media uploaded successfully!");
     } catch (err) {
       console.error(err);
-      toast.error('Error uploading files');
+      toast.error("Error uploading files");
     } finally {
       setWearableMediaUploading(false);
       hideLoader();
@@ -391,9 +438,9 @@ const Products = ({ token }) => {
   };
 
   const handleRemoveWearableMedia = (idx) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      wearableMedia: (prev.wearableMedia || []).filter((_, i) => i !== idx)
+      wearableMedia: (prev.wearableMedia || []).filter((_, i) => i !== idx),
     }));
   };
 
@@ -407,49 +454,65 @@ const Products = ({ token }) => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formData.mainImage) {
-      toast.warning('please upload image on creating product');
+      toast.warning("please upload image on creating product");
       return;
     }
     setSubmitting(true);
-    showLoader(currentProduct ? 'Saving product changes...' : 'Creating new product...');
+    showLoader(
+      currentProduct ? "Saving product changes..." : "Creating new product...",
+    );
     try {
-      const url = currentProduct ? `/api/products/${currentProduct._id}` : '/api/products';
-      const method = currentProduct ? 'PUT' : 'POST';
+      const url = currentProduct
+        ? `/api/products/${currentProduct._id}`
+        : "/api/products";
+      const method = currentProduct ? "PUT" : "POST";
 
-      let imagesList = formData.images ? formData.images.split(',').map(s => s.trim()).filter(Boolean) : [];
+      let imagesList = formData.images
+        ? formData.images
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
       if (formData.mainImage && !imagesList.includes(formData.mainImage)) {
         imagesList.unshift(formData.mainImage);
       }
 
       const payload = {
         ...formData,
-        category: formData.categories.length > 0 ? formData.categories[0] : formData.category,
+        category:
+          formData.categories.length > 0
+            ? formData.categories[0]
+            : formData.category,
         price: Number(formData.price),
         salePrice: formData.salePrice ? Number(formData.salePrice) : 0,
         inventory: Number(formData.inventory),
-        images: imagesList
+        images: imagesList,
       };
 
       const res = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
       if (data.success) {
         setIsEditing(false);
         fetchProducts();
-        toast.success(currentProduct ? 'Product updated successfully' : 'Product created successfully');
+        toast.success(
+          currentProduct
+            ? "Product updated successfully"
+            : "Product created successfully",
+        );
       } else {
-        toast.error(data.message || 'Operation failed');
+        toast.error(data.message || "Operation failed");
       }
     } catch (err) {
       console.error(err);
-      toast.error('Error saving product');
+      toast.error("Error saving product");
     } finally {
       setSubmitting(false);
       hideLoader();
@@ -458,39 +521,46 @@ const Products = ({ token }) => {
 
   const handleExport = async (format) => {
     setExportLoading(true);
-    showLoader('Exporting product catalog...');
+    showLoader("Exporting product catalog...");
     try {
-      const res = await fetch('/api/products/export', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch("/api/products/export", {
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success && data.data) {
         const productsList = data.data;
         const timestamp = Date.now();
-        
-        if (format === 'json') {
-          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(productsList, null, 2));
-          const downloadAnchor = document.createElement('a');
+
+        if (format === "json") {
+          const dataStr =
+            "data:text/json;charset=utf-8," +
+            encodeURIComponent(JSON.stringify(productsList, null, 2));
+          const downloadAnchor = document.createElement("a");
           downloadAnchor.setAttribute("href", dataStr);
-          downloadAnchor.setAttribute("download", `products_export_${timestamp}.json`);
+          downloadAnchor.setAttribute(
+            "download",
+            `products_export_${timestamp}.json`,
+          );
           document.body.appendChild(downloadAnchor);
           downloadAnchor.click();
           downloadAnchor.remove();
         } else {
           const formatted = formatProductsForExport(productsList);
-          if (format === 'csv') {
+          if (format === "csv") {
             exportToCSV(formatted, `products_export_${timestamp}.csv`);
           } else {
             exportToExcel(formatted, `products_export_${timestamp}.xlsx`);
           }
         }
-        toast.success('Catalog exported successfully!');
+        toast.success("Catalog exported successfully!");
       } else {
-        toast.error('Failed to export catalog: ' + (data.message || 'Unknown error'));
+        toast.error(
+          "Failed to export catalog: " + (data.message || "Unknown error"),
+        );
       }
     } catch (err) {
       console.error(err);
-      toast.error('Error fetching catalog for export.');
+      toast.error("Error fetching catalog for export.");
     } finally {
       setExportLoading(false);
       setShowExportModal(false);
@@ -502,44 +572,50 @@ const Products = ({ token }) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    setImportStatus('Reading and parsing file...');
-    showLoader('Parsing and importing file...');
+    setImportStatus("Reading and parsing file...");
+    showLoader("Parsing and importing file...");
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
         const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const rawRows = XLSX.utils.sheet_to_json(worksheet);
 
         if (rawRows.length === 0) {
-          setImportStatus('Error: The uploaded file is empty.');
-          toast.error('The uploaded file is empty.');
+          setImportStatus("Error: The uploaded file is empty.");
+          toast.error("The uploaded file is empty.");
           hideLoader();
           return;
         }
 
-        setImportStatus(`Parsed ${rawRows.length} rows. Mapping and validating...`);
+        setImportStatus(
+          `Parsed ${rawRows.length} rows. Mapping and validating...`,
+        );
         const parsedProducts = parseImportRows(rawRows);
 
-        setImportStatus(`Sending ${parsedProducts.length} products to the database...`);
-        const res = await fetch('/api/products/import', {
-          method: 'POST',
+        setImportStatus(
+          `Sending ${parsedProducts.length} products to the database...`,
+        );
+        const res = await fetch("/api/products/import", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ products: parsedProducts })
+          body: JSON.stringify({ products: parsedProducts }),
         });
         const responseData = await res.json();
         if (responseData.success) {
           setImportStatus(`Success: ${responseData.message}`);
-          toast.success(responseData.message || 'Products imported successfully!');
+          toast.success(
+            responseData.message || "Products imported successfully!",
+          );
           fetchProducts();
         } else {
           setImportStatus(`Import Error: ${responseData.message}`);
-          toast.error(responseData.message || 'Import failed.');
+          toast.error(responseData.message || "Import failed.");
         }
       } catch (err) {
         setImportStatus(`Error: ${err.message}`);
@@ -549,8 +625,8 @@ const Products = ({ token }) => {
       }
     };
     reader.onerror = () => {
-      setImportStatus('Error: Failed to read the file.');
-      toast.error('Failed to read the file.');
+      setImportStatus("Error: Failed to read the file.");
+      toast.error("Failed to read the file.");
       hideLoader();
     };
     reader.readAsArrayBuffer(file);
@@ -558,31 +634,33 @@ const Products = ({ token }) => {
 
   const handleBulkImport = async (e) => {
     e.preventDefault();
-    setImportStatus('Processing bulk import...');
-    showLoader('Processing bulk import...');
+    setImportStatus("Processing bulk import...");
+    showLoader("Processing bulk import...");
     try {
       const parsed = JSON.parse(importJson);
-      const res = await fetch('/api/products/import', {
-        method: 'POST',
+      const res = await fetch("/api/products/import", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ products: parsed })
+        body: JSON.stringify({ products: parsed }),
       });
       const data = await res.json();
       if (data.success) {
         setImportStatus(data.message);
-        setImportJson('');
-        toast.success(data.message || 'Products imported successfully!');
+        setImportJson("");
+        toast.success(data.message || "Products imported successfully!");
         fetchProducts();
       } else {
         setImportStatus(`Import Error: ${data.message}`);
-        toast.error(data.message || 'Import failed.');
+        toast.error(data.message || "Import failed.");
       }
     } catch (err) {
-      setImportStatus(`Parsing error: Invalid JSON structure. Must be a valid JSON array.`);
-      toast.error('Invalid JSON structure. Must be a valid JSON array.');
+      setImportStatus(
+        `Parsing error: Invalid JSON structure. Must be a valid JSON array.`,
+      );
+      toast.error("Invalid JSON structure. Must be a valid JSON array.");
     } finally {
       hideLoader();
     }
@@ -591,22 +669,51 @@ const Products = ({ token }) => {
   if (isEditing) {
     return (
       <div className="card animate-fadeIn">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "24px",
+            paddingBottom: "16px",
+            borderBottom: "1px solid var(--border-color)",
+          }}
+        >
           <div>
-            <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '24px', fontWeight: '700' }}>
-              {currentProduct ? 'Edit Product Profile' : 'Add New Product'}
+            <h2
+              style={{
+                fontFamily: "var(--font-title)",
+                fontSize: "24px",
+                fontWeight: "700",
+              }}
+            >
+              {currentProduct ? "Edit Product Profile" : "Add New Product"}
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-              {currentProduct ? `Updating product details for "${formData.name}"` : 'Create a new entry in your jewelry catalog'}
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "13px",
+                marginTop: "4px",
+              }}
+            >
+              {currentProduct
+                ? `Updating product details for "${formData.name}"`
+                : "Create a new entry in your jewelry catalog"}
             </p>
           </div>
-          <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setIsEditing(false)}
+          >
             ← Back to Products List
           </button>
         </div>
 
         <form onSubmit={handleFormSubmit}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+          >
             <div className="form-group">
               <label>Product Title Name</label>
               <input
@@ -615,7 +722,9 @@ const Products = ({ token }) => {
                 className="form-control"
                 placeholder="Enter product title"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
               />
             </div>
 
@@ -628,7 +737,9 @@ const Products = ({ token }) => {
                   className="form-control"
                   placeholder="e.g. VAR-SHRT-XL"
                   value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sku: e.target.value })
+                  }
                 />
               </div>
               <div className="form-group">
@@ -639,7 +750,9 @@ const Products = ({ token }) => {
                   className="form-control"
                   placeholder="e.g. 50"
                   value={formData.inventory}
-                  onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, inventory: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -652,7 +765,9 @@ const Products = ({ token }) => {
                 className="form-control"
                 placeholder="Provide details about features, specifications..."
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
               />
             </div>
 
@@ -665,7 +780,9 @@ const Products = ({ token }) => {
                   className="form-control"
                   placeholder="999"
                   value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: e.target.value })
+                  }
                 />
               </div>
               <div className="form-group">
@@ -675,24 +792,43 @@ const Products = ({ token }) => {
                   className="form-control"
                   placeholder="899 (Optional)"
                   value={formData.salePrice}
-                  onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, salePrice: e.target.value })
+                  }
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label style={{ fontWeight: '600', color: 'var(--text-color)', marginBottom: '8px', display: 'block' }}>Category Assignment (Multiple Selection)</label>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+              <label
+                style={{
+                  fontWeight: "600",
+                  color: "var(--text-color)",
+                  marginBottom: "8px",
+                  display: "block",
+                }}
+              >
+                Category Assignment (Multiple Selection)
+              </label>
+              <div
+                style={{ display: "flex", gap: "8px", marginBottom: "10px" }}
+              >
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => {
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                       ...prev,
-                      categories: categories.map(c => c._id)
+                      categories: categories.map((c) => c._id),
                     }));
                   }}
-                  style={{ padding: '6px 12px', fontSize: '12px', height: 'auto', minHeight: 'unset', width: 'auto' }}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    height: "auto",
+                    minHeight: "unset",
+                    width: "auto",
+                  }}
                 >
                   Select All
                 </button>
@@ -700,78 +836,145 @@ const Products = ({ token }) => {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => {
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                       ...prev,
-                      categories: []
+                      categories: [],
                     }));
                   }}
-                  style={{ padding: '6px 12px', fontSize: '12px', height: 'auto', minHeight: 'unset', width: 'auto' }}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    height: "auto",
+                    minHeight: "unset",
+                    width: "auto",
+                  }}
                 >
                   Deselect All
                 </button>
               </div>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                padding: '16px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                maxHeight: '300px',
-                overflowY: 'auto',
-                backgroundColor: 'rgba(0,0,0,0.01)',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
-              }}>
-                {categoryTree.rootCategories.map(parent => {
-                  const isParentChecked = (formData.categories || []).includes(parent._id);
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                  padding: "16px",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "8px",
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                  backgroundColor: "rgba(0,0,0,0.01)",
+                  boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)",
+                }}
+              >
+                {categoryTree.rootCategories.map((parent) => {
+                  const isParentChecked = (formData.categories || []).includes(
+                    parent._id,
+                  );
                   const children = categoryTree.childrenMap[parent._id] || [];
                   return (
-                    <div key={parent._id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div
+                      key={parent._id}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
                       {/* Parent Category Row */}
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          cursor: "pointer",
+                          margin: 0,
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={isParentChecked}
                           onChange={(e) => {
                             const updated = e.target.checked
                               ? [...(formData.categories || []), parent._id]
-                              : (formData.categories || []).filter(id => id !== parent._id);
-                            setFormData(prev => ({
+                              : (formData.categories || []).filter(
+                                  (id) => id !== parent._id,
+                                );
+                            setFormData((prev) => ({
                               ...prev,
-                              categories: updated
+                              categories: updated,
                             }));
                           }}
-                          style={{ cursor: 'pointer', width: '18px', height: '18px', accentColor: '#07512E' }}
+                          style={{
+                            cursor: "pointer",
+                            width: "18px",
+                            height: "18px",
+                            accentColor: "#07512E",
+                          }}
                         />
-                        <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text-color)' }}>{parent.name}</span>
+                        <span
+                          style={{
+                            fontWeight: "600",
+                            fontSize: "15px",
+                            color: "var(--text-color)",
+                          }}
+                        >
+                          {parent.name}
+                        </span>
                       </label>
                       {/* Child Categories (Indented) */}
                       {children.length > 0 && (
-                        <div style={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                          gap: '8px', 
-                          paddingLeft: '24px', 
-                          borderLeft: '2px solid rgba(7, 81, 46, 0.15)',
-                          marginLeft: '8px'
-                        }}>
-                          {children.map(child => {
-                            const isChildChecked = (formData.categories || []).includes(child._id);
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                              "repeat(auto-fill, minmax(180px, 1fr))",
+                            gap: "8px",
+                            paddingLeft: "24px",
+                            borderLeft: "2px solid rgba(7, 81, 46, 0.15)",
+                            marginLeft: "8px",
+                          }}
+                        >
+                          {children.map((child) => {
+                            const isChildChecked = (
+                              formData.categories || []
+                            ).includes(child._id);
                             return (
-                              <label key={child._id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-color)', fontWeight: 'normal', margin: 0 }}>
+                              <label
+                                key={child._id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  cursor: "pointer",
+                                  fontSize: "13px",
+                                  color: "var(--text-color)",
+                                  fontWeight: "normal",
+                                  margin: 0,
+                                }}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={isChildChecked}
                                   onChange={(e) => {
                                     const updated = e.target.checked
-                                      ? [...(formData.categories || []), child._id]
-                                      : (formData.categories || []).filter(id => id !== child._id);
-                                    setFormData(prev => ({
+                                      ? [
+                                          ...(formData.categories || []),
+                                          child._id,
+                                        ]
+                                      : (formData.categories || []).filter(
+                                          (id) => id !== child._id,
+                                        );
+                                    setFormData((prev) => ({
                                       ...prev,
-                                      categories: updated
+                                      categories: updated,
                                     }));
                                   }}
-                                  style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#07512E' }}
+                                  style={{
+                                    cursor: "pointer",
+                                    width: "15px",
+                                    height: "15px",
+                                    accentColor: "#07512E",
+                                  }}
                                 />
                                 <span>{child.name}</span>
                               </label>
@@ -789,8 +992,13 @@ const Products = ({ token }) => {
               <label>Listing Status</label>
               <select
                 className="form-control"
-                value={formData.isActive ? 'true' : 'false'}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
+                value={formData.isActive ? "true" : "false"}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    isActive: e.target.value === "true",
+                  })
+                }
               >
                 <option value="true">Active Listing</option>
                 <option value="false">Hidden / Inactive</option>
@@ -798,40 +1006,95 @@ const Products = ({ token }) => {
             </div>
 
             {/* Main Product Image Upload Section */}
-            <div className="form-group" style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
-              <label style={{ fontWeight: 'bold' }}>Main Product Image <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 10px 0' }}>
-                This is the close-up product image displayed as the primary thumbnail.
+            <div
+              className="form-group"
+              style={{
+                border: "1px dashed var(--border-color)",
+                borderRadius: "8px",
+                padding: "16px",
+                backgroundColor: "rgba(0,0,0,0.01)",
+              }}
+            >
+              <label style={{ fontWeight: "bold" }}>
+                Main Product Image{" "}
+                <span style={{ color: "var(--danger)" }}>*</span>
+              </label>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  margin: "2px 0 10px 0",
+                }}
+              >
+                This is the close-up product image displayed as the primary
+                thumbnail.
               </p>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "16px" }}
+              >
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleMainImageUpload}
-                  style={{ display: 'none' }}
+                  style={{ display: "none" }}
                   id="main-image-upload-input"
                 />
                 <label
                   htmlFor="main-image-upload-input"
                   className="btn btn-secondary"
-                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  style={{
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
                 >
                   <PlusCircle size={16} />
-                  {mainImageUploading ? 'Uploading...' : 'Choose Main Image'}
+                  {mainImageUploading ? "Uploading..." : "Choose Main Image"}
                 </label>
 
                 {formData.mainImage && (
-                  <div style={{ position: 'relative', width: '80px', height: '80px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "80px",
+                      height: "80px",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                      overflow: "hidden",
+                    }}
+                  >
                     <img
                       src={formData.mainImage}
                       alt="Main Product Preview"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
                     />
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, mainImage: '' })}
-                      style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(220, 38, 38, 0.8)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                      onClick={() =>
+                        setFormData({ ...formData, mainImage: "" })
+                      }
+                      style={{
+                        position: "absolute",
+                        top: "4px",
+                        right: "4px",
+                        background: "rgba(220, 38, 38, 0.8)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "18px",
+                        height: "18px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "10px",
+                      }}
                     >
                       ×
                     </button>
@@ -841,65 +1104,143 @@ const Products = ({ token }) => {
             </div>
 
             {/* Wearable Media / Secondary Images & Videos Upload Section */}
-            <div className="form-group" style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
-              <label style={{ fontWeight: 'bold' }}>Wearable & Detail Media (Images & Videos)</label>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 10px 0' }}>
-                Upload images or videos showing someone wearing the product, or other details.
+            <div
+              className="form-group"
+              style={{
+                border: "1px dashed var(--border-color)",
+                borderRadius: "8px",
+                padding: "16px",
+                backgroundColor: "rgba(0,0,0,0.01)",
+              }}
+            >
+              <label style={{ fontWeight: "bold" }}>
+                Wearable & Detail Media (Images & Videos)
+              </label>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  margin: "2px 0 10px 0",
+                }}
+              >
+                Upload images or videos showing someone wearing the product, or
+                other details.
               </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
                 <div>
                   <input
                     type="file"
                     accept="image/*,video/*"
                     multiple
                     onChange={handleWearableMediaUpload}
-                    style={{ display: 'none' }}
+                    style={{ display: "none" }}
                     id="wearable-media-upload-input"
                   />
                   <label
                     htmlFor="wearable-media-upload-input"
                     className="btn btn-secondary"
-                    style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    style={{
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
                   >
                     <PlusCircle size={16} />
-                    {wearableMediaUploading ? 'Uploading...' : 'Choose Images/Videos'}
+                    {wearableMediaUploading
+                      ? "Uploading..."
+                      : "Choose Images/Videos"}
                   </label>
                 </div>
 
-                {formData.wearableMedia && formData.wearableMedia.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                    {formData.wearableMedia.map((media, idx) => (
-                      <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#000' }}>
-                        {media.mediaType === 'video' ? (
-                          <video
-                            src={media.url}
-                            muted
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        ) : (
-                          <img
-                            src={media.url}
-                            alt={`Preview ${idx}`}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        )}
-                        
-                        <div style={{ position: 'absolute', bottom: '2px', left: '4px', fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '1px 4px', borderRadius: '4px' }}>
-                          {media.mediaType}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveWearableMedia(idx)}
-                          style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(220, 38, 38, 0.8)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '10px' }}
+                {formData.wearableMedia &&
+                  formData.wearableMedia.length > 0 && (
+                    <div
+                      style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}
+                    >
+                      {formData.wearableMedia.map((media, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            position: "relative",
+                            width: "80px",
+                            height: "80px",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: "8px",
+                            overflow: "hidden",
+                            backgroundColor: "#000",
+                          }}
                         >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                          {media.mediaType === "video" ? (
+                            <video
+                              src={media.url}
+                              muted
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ) : (
+                            <img
+                              src={media.url}
+                              alt={`Preview ${idx}`}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          )}
+
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: "2px",
+                              left: "4px",
+                              fontSize: "9px",
+                              backgroundColor: "rgba(0,0,0,0.6)",
+                              color: "white",
+                              padding: "1px 4px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {media.mediaType}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveWearableMedia(idx)}
+                            style={{
+                              position: "absolute",
+                              top: "4px",
+                              right: "4px",
+                              background: "rgba(220, 38, 38, 0.8)",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "50%",
+                              width: "18px",
+                              height: "18px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              fontSize: "10px",
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -917,7 +1258,9 @@ const Products = ({ token }) => {
             {/* Attributes Section */}
             <div className="form-group">
               <label>Dynamic Product Attributes</label>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+              <div
+                style={{ display: "flex", gap: "8px", marginBottom: "10px" }}
+              >
                 <input
                   type="text"
                   className="form-control"
@@ -932,66 +1275,146 @@ const Products = ({ token }) => {
                   value={newAttrVal}
                   onChange={(e) => setNewAttrVal(e.target.value)}
                 />
-                <button type="button" className="btn btn-secondary" onClick={handleAddAttribute} style={{ padding: '12px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleAddAttribute}
+                  style={{ padding: "12px" }}
+                >
                   <PlusCircle size={18} />
                 </button>
               </div>
-              
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {formData.attributes.map((attr, idx) => (
-                  <span key={idx} className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px' }}>
+                  <span
+                    key={idx}
+                    className="badge badge-info"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 10px",
+                    }}
+                  >
                     {attr.key}: {attr.value}
-                    <MinusCircle size={12} style={{ cursor: 'pointer', color: 'var(--danger)' }} onClick={() => handleRemoveAttribute(idx)} />
+                    <MinusCircle
+                      size={12}
+                      style={{ cursor: "pointer", color: "var(--danger)" }}
+                      onClick={() => handleRemoveAttribute(idx)}
+                    />
                   </span>
                 ))}
               </div>
             </div>
 
             {/* Sizes & Custom Price Section */}
-            <div className="form-group" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
-              <label style={{ fontWeight: 'bold' }}>Product Sizes & Custom Pricing</label>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 12px 0' }}>
-                Specify sizes, optional custom prices, and per-size stock quantity. Leave price blank to use the base product price. Leave stock blank for unlimited (uses main stock).
+            <div
+              className="form-group"
+              style={{
+                borderTop: "1px solid var(--border-color)",
+                paddingTop: "15px",
+              }}
+            >
+              <label style={{ fontWeight: "bold" }}>
+                Product Sizes & Custom Pricing
+              </label>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  margin: "4px 0 12px 0",
+                }}
+              >
+                Specify sizes, optional custom prices, and per-size stock
+                quantity. Leave price blank to use the base product price. Leave
+                stock blank for unlimited (uses main stock).
               </p>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  marginBottom: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
                 <input
                   type="text"
                   className="form-control"
                   placeholder="Size (e.g. XL, 14, 16)"
                   value={newSize.size}
-                  onChange={(e) => setNewSize({ ...newSize, size: e.target.value })}
-                  style={{ minWidth: '120px', flex: '1' }}
+                  onChange={(e) =>
+                    setNewSize({ ...newSize, size: e.target.value })
+                  }
+                  style={{ minWidth: "120px", flex: "1" }}
                 />
                 <input
                   type="number"
                   className="form-control"
                   placeholder="Price (₹) - Optional"
                   value={newSize.price}
-                  onChange={(e) => setNewSize({ ...newSize, price: e.target.value })}
-                  style={{ minWidth: '120px', flex: '1' }}
+                  onChange={(e) =>
+                    setNewSize({ ...newSize, price: e.target.value })
+                  }
+                  style={{ minWidth: "120px", flex: "1" }}
                 />
                 <input
                   type="number"
                   className="form-control"
                   placeholder="Qty / Stock (e.g. 10)"
                   value={newSize.inventory}
-                  onChange={(e) => setNewSize({ ...newSize, inventory: e.target.value })}
-                  style={{ minWidth: '120px', flex: '1' }}
+                  onChange={(e) =>
+                    setNewSize({ ...newSize, inventory: e.target.value })
+                  }
+                  style={{ minWidth: "120px", flex: "1" }}
                 />
-                <button type="button" className="btn btn-secondary" onClick={handleAddSize} style={{ padding: '12px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleAddSize}
+                  style={{ padding: "12px" }}
+                >
                   Add Size
                 </button>
               </div>
-              
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {formData.sizes && formData.sizes.map((s, idx) => (
-                  <span key={idx} className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 10px', fontSize: '12px', backgroundColor: 'rgba(7, 81, 46, 0.1)', border: '1px solid rgba(7, 81, 46, 0.2)', color: 'var(--text-dark)' }}>
-                    Size: <strong>{s.size}</strong>
-                    {s.price ? ` ₹${s.price}` : ' (Default Price)'}
-                    {' | Stock: '}<strong style={{ color: s.inventory > 0 ? 'var(--success)' : 'var(--danger)' }}>{s.inventory > 0 ? s.inventory : '∞'}</strong>
-                    <MinusCircle size={14} style={{ cursor: 'pointer', color: 'var(--danger)' }} onClick={() => handleRemoveSize(idx)} />
-                  </span>
-                ))}
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {formData.sizes &&
+                  formData.sizes.map((s, idx) => (
+                    <span
+                      key={idx}
+                      className="badge badge-info"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "6px 10px",
+                        fontSize: "12px",
+                        backgroundColor: "rgba(7, 81, 46, 0.1)",
+                        border: "1px solid rgba(7, 81, 46, 0.2)",
+                        color: "var(--text-dark)",
+                      }}
+                    >
+                      Size: <strong>{s.size}</strong>
+                      {s.price ? ` ₹${s.price}` : " (Default Price)"}
+                      {" | Stock: "}
+                      <strong
+                        style={{
+                          color:
+                            s.inventory > 0
+                              ? "var(--success)"
+                              : "var(--danger)",
+                        }}
+                      >
+                        {s.inventory > 0 ? s.inventory : "∞"}
+                      </strong>
+                      <MinusCircle
+                        size={14}
+                        style={{ cursor: "pointer", color: "var(--danger)" }}
+                        onClick={() => handleRemoveSize(idx)}
+                      />
+                    </span>
+                  ))}
               </div>
             </div>
 
@@ -1166,10 +1589,34 @@ const Products = ({ token }) => {
             </div> */}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px', paddingBefore: '16px',  }}>
-            <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
-            <button type="submit" disabled={submitting || mainImageUploading || wearableMediaUploading} className="btn btn-primary">
-              {submitting ? 'Saving...' : (currentProduct ? 'Save Adjustments' : 'Add to Catalog')}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "12px",
+              marginTop: "30px",
+              paddingBefore: "16px",
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setIsEditing(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={
+                submitting || mainImageUploading || wearableMediaUploading
+              }
+              className="btn btn-primary"
+            >
+              {submitting
+                ? "Saving..."
+                : currentProduct
+                  ? "Save Adjustments"
+                  : "Add to Catalog"}
             </button>
           </div>
         </form>
@@ -1194,16 +1641,19 @@ const Products = ({ token }) => {
 
         <div className="filters-wrapper">
           <select
-          style={{cursor:"pointer"}}
+            style={{ cursor: "pointer" }}
             className="form-control "
             value={selectedCategory}
-            onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">All Categories</option>
-            {categoryTree.rootCategories.map(parent => (
+            {categoryTree.rootCategories.map((parent) => (
               <React.Fragment key={parent._id}>
                 <option value={parent._id}>{parent.name}</option>
-                {(categoryTree.childrenMap[parent._id] || []).map(child => (
+                {(categoryTree.childrenMap[parent._id] || []).map((child) => (
                   <option key={child._id} value={child._id}>
                     &nbsp;&nbsp;— {child.name}
                   </option>
@@ -1213,21 +1663,32 @@ const Products = ({ token }) => {
           </select>
 
           <select
-            style={{cursor:"pointer"}}
+            style={{ cursor: "pointer" }}
             className="form-control "
             value={sortOption}
-            onChange={(e) => { setSortOption(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSortOption(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="newest">Sort: Newest</option>
             <option value="price_asc">Sort: Price Low to High</option>
             <option value="price_desc">Sort: Price High to Low</option>
           </select>
 
-          <button className="btn btn-secondary" onClick={() => setShowExportModal(true)} title="Export Catalog to Excel, CSV, or JSON">
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowExportModal(true)}
+            title="Export Catalog to Excel, CSV, or JSON"
+          >
             <Download size={16} /> Export
           </button>
-          
-          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)} title="Bulk Import via Excel, CSV, or JSON">
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowImportModal(true)}
+            title="Bulk Import via Excel, CSV, or JSON"
+          >
             <FileSpreadsheet size={16} /> Import
           </button>
 
@@ -1238,7 +1699,7 @@ const Products = ({ token }) => {
       </div>
 
       {/* Products Table Card */}
-      <div className="card" style={{ padding: '0px' }}>
+      <div className="card" style={{ padding: "0px" }}>
         <div className="table-container">
           <table className="custom-table">
             <thead>
@@ -1250,120 +1711,209 @@ const Products = ({ token }) => {
                 <th>Sale Price</th>
                 <th>Stock Level</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <td
+                    colSpan={8}
+                    style={{
+                      textAlign: "center",
+                      padding: "40px",
+                      color: "var(--text-muted)",
+                    }}
+                  >
                     Loading products list...
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <td
+                    colSpan={8}
+                    style={{
+                      textAlign: "center",
+                      padding: "40px",
+                      color: "var(--text-muted)",
+                    }}
+                  >
                     No products matching filter criteria found.
                   </td>
                 </tr>
               ) : (
-                products.map(p => (
+                products.map((p) => (
                   <tr key={p._id}>
                     <td>
                       <img
-                        src={p.images[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30'}
+                        src={
+                          p.images[0] ||
+                          "https://images.unsplash.com/photo-1523275335684-37898b6baf30"
+                        }
                         alt={p.name}
-                        style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border-color)' }}
+                        style={{
+                          width: "44px",
+                          height: "44px",
+                          borderRadius: "8px",
+                          objectFit: "cover",
+                          border: "1px solid var(--border-color)",
+                        }}
                       />
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: '600' }}>{p.name}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SKU: {p.sku}</span>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontWeight: "600" }}>{p.name}</span>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          SKU: {p.sku}
+                        </span>
                       </div>
                     </td>
                     <td>
                       {(() => {
                         const cats = p.categories || [];
                         if (cats.length === 0) {
-                          return <span className="badge text-black bg-gray-300">{p.category?.name || 'Unassigned'}</span>;
+                          return (
+                            <span className="badge text-black bg-gray-300">
+                              {p.category?.name || "Unassigned"}
+                            </span>
+                          );
                         }
-                        
-                        const firstCatName = cats[0]?.name || p.category?.name || 'Unassigned';
+
+                        const firstCatName =
+                          cats[0]?.name || p.category?.name || "Unassigned";
                         if (cats.length <= 1) {
-                          return <span className="badge text-black bg-gray-300">{firstCatName}</span>;
+                          return (
+                            <span className="badge text-black bg-gray-300">
+                              {firstCatName}
+                            </span>
+                          );
                         }
 
                         const remainingCount = cats.length - 1;
                         const isOpen = activeCategoryPopupId === p._id;
 
                         return (
-                          <div style={{ position: 'relative', display: 'inline-block' }}>
-                            <span 
-                              className="badge text-black bg-gray-300" 
-                              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', userSelect: 'none' }} 
+                          <div
+                            style={{
+                              position: "relative",
+                              display: "inline-block",
+                            }}
+                          >
+                            <span
+                              className="badge text-black bg-gray-300"
+                              style={{
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                userSelect: "none",
+                              }}
                               onClick={() => setActiveCategoryPopupId(p._id)}
                             >
-                              {firstCatName} <span style={{ color: '#07512E', fontWeight: 'bold' }}>+ {remainingCount} more</span>
+                              {firstCatName}{" "}
+                              <span
+                                style={{ color: "#07512E", fontWeight: "bold" }}
+                              >
+                                + {remainingCount} more
+                              </span>
                             </span>
                             {isOpen && (
                               <>
-                                <div 
+                                <div
                                   style={{
-                                    position: 'fixed',
+                                    position: "fixed",
                                     top: 0,
                                     left: 0,
                                     right: 0,
                                     bottom: 0,
                                     zIndex: 99,
-                                    background: 'transparent'
+                                    background: "transparent",
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setActiveCategoryPopupId(null);
                                   }}
                                 />
-                                <div style={{
-                                  position: 'absolute',
-                                  top: '100%',
-                                  left: '0',
-                                  zIndex: 100,
-                                  backgroundColor: '#ffffff',
-                                  border: '1px solid var(--border-color)',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                  padding: '12px',
-                                  minWidth: '200px',
-                                  marginTop: '6px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '8px',
-                                  textAlign: 'left'
-                                }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-                                    <span style={{ fontWeight: 'bold', fontSize: '12px', color: 'var(--text-color)' }}>All Categories</span>
-                                    <button 
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: "0",
+                                    zIndex: 100,
+                                    backgroundColor: "#ffffff",
+                                    border: "1px solid var(--border-color)",
+                                    borderRadius: "8px",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                                    padding: "12px",
+                                    minWidth: "200px",
+                                    marginTop: "6px",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "8px",
+                                    textAlign: "left",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      borderBottom:
+                                        "1px solid var(--border-color)",
+                                      paddingBottom: "6px",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontWeight: "bold",
+                                        fontSize: "12px",
+                                        color: "var(--text-color)",
+                                      }}
+                                    >
+                                      All Categories
+                                    </span>
+                                    <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setActiveCategoryPopupId(null);
-                                      }} 
+                                      }}
                                       style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: 'var(--text-muted)',
-                                        cursor: 'pointer',
-                                        fontSize: '16px',
-                                        fontWeight: 'bold',
-                                        padding: '0 4px',
-                                        lineHeight: 1
+                                        background: "none",
+                                        border: "none",
+                                        color: "var(--text-muted)",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        fontWeight: "bold",
+                                        padding: "0 4px",
+                                        lineHeight: 1,
                                       }}
                                     >
                                       ×
                                     </button>
                                   </div>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: "6px",
+                                      maxHeight: "150px",
+                                      overflowY: "auto",
+                                    }}
+                                  >
                                     {cats.map((cat, idx) => (
-                                      <span key={cat._id || idx} style={{ fontSize: '12px', color: 'var(--text-color)', display: 'block' }}>
+                                      <span
+                                        key={cat._id || idx}
+                                        style={{
+                                          fontSize: "12px",
+                                          color: "var(--text-color)",
+                                          display: "block",
+                                        }}
+                                      >
                                         • {cat.name}
                                       </span>
                                     ))}
@@ -1375,26 +1925,50 @@ const Products = ({ token }) => {
                         );
                       })()}
                     </td>
-                    <td style={{ fontWeight: '500' }}>₹{p.price.toLocaleString('en-IN')}</td>
-                    <td style={{ fontWeight: '500', color: p.salePrice > 0 ? '#10b981' : 'var(--text-dark)' }}>
-                      {p.salePrice > 0 ? `₹${p.salePrice.toLocaleString('en-IN')}` : '-'}
+                    <td style={{ fontWeight: "500" }}>
+                      ₹{p.price.toLocaleString("en-IN")}
+                    </td>
+                    <td
+                      style={{
+                        fontWeight: "500",
+                        color: p.salePrice > 0 ? "#10b981" : "var(--text-dark)",
+                      }}
+                    >
+                      {p.salePrice > 0
+                        ? `₹${p.salePrice.toLocaleString("en-IN")}`
+                        : "-"}
                     </td>
                     <td>
-                      <span className={`badge badge-${p.inventory <= 10 ? 'danger' : 'success'}`} style={{ fontWeight: 'bold' }}>
+                      <span
+                        className={`badge badge-${p.inventory <= 10 ? "danger" : "success"}`}
+                        style={{ fontWeight: "bold" }}
+                      >
                         {p.inventory} units
                       </span>
                     </td>
                     <td>
-                      <span className={`badge badge-${p.isActive ? 'success' : 'danger'}`}>
-                        {p.isActive ? 'Active' : 'Inactive'}
+                      <span
+                        className={`badge badge-${p.isActive ? "success" : "danger"}`}
+                      >
+                        {p.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '8px' }}>
-                        <button className="btn btn-secondary" onClick={() => openEditModal(p)} style={{ padding: '6px' }} title="Edit Product">
+                    <td style={{ textAlign: "right" }}>
+                      <div style={{ display: "inline-flex", gap: "8px" }}>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => openEditModal(p)}
+                          style={{ padding: "6px" }}
+                          title="Edit Product"
+                        >
                           <Edit2 size={14} />
                         </button>
-                        <button className="btn btn-secondary btn-danger" onClick={() => handleDelete(p._id)} style={{ padding: '6px' }} title="Delete Product">
+                        <button
+                          className="btn btn-secondary btn-danger"
+                          onClick={() => handleDelete(p._id)}
+                          style={{ padding: "6px" }}
+                          title="Delete Product"
+                        >
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -1408,10 +1982,40 @@ const Products = ({ token }) => {
 
         {/* Pagination Toolbar */}
         {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '16px', borderTop: '1px solid var(--border-color)' }}>
-            <button className="btn btn-secondary" disabled={page === 1} onClick={() => setPage(page - 1)} style={{ padding: '6px 12px' }}>Prev</button>
-            <span style={{ alignSelf: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>Page {page} of {totalPages}</span>
-            <button className="btn btn-secondary" disabled={page === totalPages} onClick={() => setPage(page + 1)} style={{ padding: '6px 12px' }}>Next</button>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "8px",
+              padding: "16px",
+              borderTop: "1px solid var(--border-color)",
+            }}
+          >
+            <button
+              className="btn btn-secondary"
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+              style={{ padding: "6px 12px" }}
+            >
+              Prev
+            </button>
+            <span
+              style={{
+                alignSelf: "center",
+                fontSize: "13px",
+                color: "var(--text-muted)",
+              }}
+            >
+              Page {page} of {totalPages}
+            </span>
+            <button
+              className="btn btn-secondary"
+              disabled={page === totalPages}
+              onClick={() => setPage(page + 1)}
+              style={{ padding: "6px 12px" }}
+            >
+              Next
+            </button>
           </div>
         )}
       </div>
@@ -1419,24 +2023,67 @@ const Products = ({ token }) => {
       {/* Bulk Import Modal */}
       {showImportModal && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '600px' }}>
+          <div className="modal-content" style={{ maxWidth: "600px" }}>
             <div className="modal-header">
               <h2>Bulk Import Products</h2>
-              <button className="modal-close" onClick={() => { setShowImportModal(false); setImportStatus(''); }}><X size={20} /></button>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportStatus("");
+                }}
+              >
+                <X size={20} />
+              </button>
             </div>
-            
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            <div
+              className="modal-body"
+              style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+            >
               {/* Template Download Section */}
-              <div style={{ padding: '12px', border: '1px dashed var(--border-color)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: '600' }}>Download Spreadsheet Template</h4>
-                <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Use these pre-formatted templates to structure your product details correctly before importing.
+              <div
+                style={{
+                  padding: "12px",
+                  border: "1px dashed var(--border-color)",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(0,0,0,0.01)",
+                }}
+              >
+                <h4
+                  style={{
+                    margin: "0 0 6px 0",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                  }}
+                >
+                  Download Spreadsheet Template
+                </h4>
+                <p
+                  style={{
+                    margin: "0 0 10px 0",
+                    fontSize: "12px",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  Use these pre-formatted templates to structure your product
+                  details correctly before importing.
                 </p>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => downloadTemplate('excel')} style={{ fontSize: '12px', padding: '6px 12px' }}>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => downloadTemplate("excel")}
+                    style={{ fontSize: "12px", padding: "6px 12px" }}
+                  >
                     Download Excel Template (.xlsx)
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => downloadTemplate('csv')} style={{ fontSize: '12px', padding: '6px 12px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => downloadTemplate("csv")}
+                    style={{ fontSize: "12px", padding: "6px 12px" }}
+                  >
                     Download CSV Template (.csv)
                   </button>
                 </div>
@@ -1444,47 +2091,107 @@ const Products = ({ token }) => {
 
               {/* File Uploader Section */}
               <div>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>Upload Excel / CSV File</h4>
+                <h4
+                  style={{
+                    margin: "0 0 8px 0",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                  }}
+                >
+                  Upload Excel / CSV File
+                </h4>
                 <input
                   type="file"
                   accept=".xlsx, .xls, .csv"
                   onChange={handleFileImport}
                   className="form-control"
-                  style={{ padding: '8px', cursor: 'pointer' }}
+                  style={{ padding: "8px", cursor: "pointer" }}
                 />
               </div>
 
               {/* Collapsible/Fallback Raw JSON paste section */}
-              <details style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px' }}>
-                <summary style={{ cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              <details
+                style={{
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "8px",
+                  padding: "10px",
+                }}
+              >
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "var(--text-muted)",
+                  }}
+                >
                   Alternative: Paste JSON Array directly
                 </summary>
-                <form onSubmit={handleBulkImport} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <form
+                  onSubmit={handleBulkImport}
+                  style={{
+                    marginTop: "10px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
                   <div className="form-group">
                     <textarea
                       rows={6}
                       required
                       className="form-control"
-                      style={{ fontFamily: 'monospace', fontSize: '12px', margin: 0 }}
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "12px",
+                        margin: 0,
+                      }}
                       placeholder={`[\n  {\n    "name": "Cool Sunglasses",\n    "sku": "ACC-SUN-01",\n    "price": 1499,\n    "inventory": 80,\n    "categoryName": "Electronics"\n  }\n]`}
                       value={importJson}
                       onChange={(e) => setImportJson(e.target.value)}
                     />
                   </div>
-                  <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end' }}>Process JSON Import</button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ alignSelf: "flex-end" }}
+                  >
+                    Process JSON Import
+                  </button>
                 </form>
               </details>
 
               {importStatus && (
-                <div style={{ fontSize: '13px', color: 'var(--secondary)', backgroundColor: 'rgba(0,0,0,0.05)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid var(--primary)', whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto' }}>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--secondary)",
+                    backgroundColor: "rgba(0,0,0,0.05)",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    borderLeft: "3px solid var(--primary)",
+                    whiteSpace: "pre-wrap",
+                    maxHeight: "150px",
+                    overflowY: "auto",
+                  }}
+                >
                   <strong>Status Log:</strong>
-                  <div style={{ marginTop: '4px' }}>{importStatus}</div>
+                  <div style={{ marginTop: "4px" }}>{importStatus}</div>
                 </div>
               )}
             </div>
-            
+
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => { setShowImportModal(false); setImportStatus(''); }}>Close</button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportStatus("");
+                }}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -1493,38 +2200,108 @@ const Products = ({ token }) => {
       {/* Bulk Export Modal */}
       {showExportModal && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '450px' }}>
+          <div className="modal-content" style={{ maxWidth: "450px" }}>
             <div className="modal-header">
               <h2>Export Product Catalog</h2>
-              <button className="modal-close" onClick={() => setShowExportModal(false)}><X size={20} /></button>
+              <button
+                className="modal-close"
+                onClick={() => setShowExportModal(false)}
+              >
+                <X size={20} />
+              </button>
             </div>
-            
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px 0' }}>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
-                Select the format in which you want to export your entire jewelry product catalog.
+
+            <div
+              className="modal-body"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                padding: "20px 0",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "var(--text-muted)",
+                  margin: 0,
+                  textAlign: "center",
+                }}
+              >
+                Select the format in which you want to export your entire
+                jewelry product catalog.
               </p>
-              
+
               {exportLoading ? (
-                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "20px",
+                    color: "var(--text-muted)",
+                  }}
+                >
                   Exporting catalog data, please wait...
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-                  <button type="button" className="btn btn-primary" onClick={() => handleExport('excel')} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                    marginTop: "10px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleExport("excel")}
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <FileSpreadsheet size={18} /> Export as Excel Sheet (.xlsx)
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => handleExport('csv')} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleExport("csv")}
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <FileText size={18} /> Export as CSV File (.csv)
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => handleExport('json')} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleExport("json")}
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <Download size={18} /> Export as JSON Document (.json)
                   </button>
                 </div>
               )}
             </div>
-            
+
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowExportModal(false)}>Cancel</button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowExportModal(false)}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

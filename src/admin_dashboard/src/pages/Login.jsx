@@ -133,7 +133,7 @@ const Login = ({ onLoginSuccess }) => {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, role: "admin" }),
       });
       const data = await response.json();
 
@@ -160,7 +160,7 @@ const Login = ({ onLoginSuccess }) => {
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code: recoveryCode, newPassword }),
+        body: JSON.stringify({ email, code: recoveryCode, newPassword, role: "admin" }),
       });
       const data = await response.json();
 

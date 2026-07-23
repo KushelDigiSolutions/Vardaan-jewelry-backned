@@ -22,7 +22,7 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: { $regex: new RegExp("^" + email.trim() + "$", "i") } });
     if (userExists) {
       return res
         .status(400)
@@ -95,7 +95,7 @@ export const loginUser = async (req, res, next) => {
         .json({ success: false, message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") } });
     if (!user || !(await user.comparePassword(password))) {
       return res
         .status(401)
@@ -150,7 +150,7 @@ export const loginUser = async (req, res, next) => {
 export const sendOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: { $regex: new RegExp("^" + email.trim() + "$", "i") } });
     if (!user) {
       return res
         .status(404)
@@ -183,7 +183,7 @@ export const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({
-      email,
+      email: { $regex: new RegExp("^" + email.trim() + "$", "i") },
       otp,
       otpExpires: { $gt: Date.now() },
     });
@@ -217,7 +217,7 @@ export const verifyOTP = async (req, res, next) => {
 // Forgot Password
 export const forgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body;
+    const { email, role } = req.body;
     const normalizedEmail =
       typeof email === "string" ? email.trim().toLowerCase() : "";
 
@@ -227,12 +227,24 @@ export const forgotPassword = async (req, res, next) => {
         .json({ success: false, message: "Email is required" });
     }
 
-    const user = await User.findOne({ email: normalizedEmail, role: "admin" });
+    const query = { email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") } };
+    if (role === "admin") {
+      query.role = "admin";
+    }
+
+    const user = await User.findOne(query);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Invalid email. No admin account found with this email.",
-      });
+      if (role === "admin") {
+        return res.status(404).json({
+          success: false,
+          message: "Invalid email. No admin account found with this email.",
+        });
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "Invalid email. No user account found with this email.",
+        });
+      }
     }
 
     const resetToken = generateOTP();
@@ -241,12 +253,12 @@ export const forgotPassword = async (req, res, next) => {
     await user.save();
 
     const emailHtml = getForgotPasswordEmailTemplate(
-      user.name || "Admin",
+      user.name || (user.role === "admin" ? "Admin" : "Customer"),
       resetToken,
     );
     await sendEmail({
       to: user.email,
-      subject: "Reset Your Vardaan Admin Password",
+      subject: user.role === "admin" ? "Reset Your Vardaan Admin Password" : "Reset Your Vardaan Account Password",
       text: `Use this recovery code to reset your password: ${resetToken}`,
       html: emailHtml,
     });
@@ -265,7 +277,7 @@ export const forgotPassword = async (req, res, next) => {
 // Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
-    const { email, code, newPassword } = req.body;
+    const { email, code, newPassword, role } = req.body;
     const normalizedEmail =
       typeof email === "string" ? email.trim().toLowerCase() : "";
 
@@ -278,12 +290,16 @@ export const resetPassword = async (req, res, next) => {
         });
     }
 
-    const user = await User.findOne({
-      email: normalizedEmail,
-      role: "admin",
+    const query = {
+      email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") },
       otp: code,
       otpExpires: { $gt: Date.now() },
-    });
+    };
+    if (role === "admin") {
+      query.role = "admin";
+    }
+
+    const user = await User.findOne(query);
 
     if (!user) {
       return res
@@ -389,7 +405,7 @@ export const verifyEmail = async (req, res, next) => {
     }
 
     const user = await User.findOne({
-      email: normalizedEmail,
+      email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") },
       otp,
       otpExpires: { $gt: Date.now() },
     });
@@ -436,7 +452,7 @@ export const resendVerificationOTP = async (req, res, next) => {
         .json({ success: false, message: "Email address is required" });
     }
 
-    const user = await User.findOne({ email: normalizedEmail, role: "admin" });
+    const user = await User.findOne({ email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") }, role: "admin" });
     if (!user) {
       return res.status(404).json({
         success: false,
