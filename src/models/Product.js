@@ -18,6 +18,18 @@ const productSchema = new mongoose.Schema({
       mediaType: { type: String, enum: ['image', 'video'], default: 'image' }
     }
   ],
+  colorImages: [
+    {
+      color: { type: String, required: true },
+      mainImage: { type: String, required: true },
+      wearableMedia: [
+        {
+          url: { type: String, required: true },
+          mediaType: { type: String, enum: ['image', 'video'], default: 'image' }
+        }
+      ]
+    }
+  ],
   isActive: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
   salesCount: { type: Number, default: 0, min: 0 },

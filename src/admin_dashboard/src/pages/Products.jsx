@@ -93,6 +93,7 @@ const Products = ({ token }) => {
     attributes: [], // Array of {key, value}
     variants: [], // Array of variants
     sizes: [],
+    colorImages: [], // Array of {color, mainImage, wearableImage}
   });
   const [newAttrKey, setNewAttrKey] = useState("");
   const [newAttrVal, setNewAttrVal] = useState("");
@@ -112,6 +113,13 @@ const Products = ({ token }) => {
     salePrice: "",
     inventory: "",
   });
+
+  // State for dynamic color variants upload
+  const [tempColor, setTempColor] = useState("#000000");
+  const [tempColorMainImage, setTempColorMainImage] = useState("");
+  const [tempColorWearableMedia, setTempColorWearableMedia] = useState([]);
+  const [colorMainImageUploading, setColorMainImageUploading] = useState(false);
+  const [colorWearableMediaUploading, setColorWearableMediaUploading] = useState(false);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -196,7 +204,7 @@ const Products = ({ token }) => {
       price: "",
       salePrice: "",
       inventory: "",
-      category: categories[0]?._id || "",
+      category: "",
       categories: [],
       isActive: true,
       images: "",
@@ -205,7 +213,11 @@ const Products = ({ token }) => {
       attributes: [],
       variants: [],
       sizes: [],
+      colorImages: [],
     });
+    setTempColor("#000000");
+    setTempColorMainImage("");
+    setTempColorWearableMedia([]);
     setIsEditing(true);
   };
 
@@ -231,7 +243,11 @@ const Products = ({ token }) => {
       attributes: product.attributes || [],
       variants: product.variants || [],
       sizes: product.sizes || [],
+      colorImages: product.colorImages || [],
     });
+    setTempColor("#000000");
+    setTempColorMainImage("");
+    setTempColorWearableMedia([]);
     setIsEditing(true);
   };
 
@@ -444,6 +460,145 @@ const Products = ({ token }) => {
     }));
   };
 
+  const handleColorMainImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(
+        `Image size must be less than 50MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`
+      );
+      return;
+    }
+
+    setColorMainImageUploading(true);
+    showLoader("Uploading color main image...");
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+
+    try {
+      const res = await fetch("/api/products/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: uploadData,
+      });
+      const data = await res.json();
+      if (data.success && data.files && data.files.length > 0) {
+        setTempColorMainImage(data.files[0].url);
+        toast.success("Color main image uploaded successfully!");
+      } else {
+        toast.error(data.message || "Upload failed");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error uploading file");
+    } finally {
+      setColorMainImageUploading(false);
+      hideLoader();
+    }
+  };
+
+  const handleColorWearableMediaUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+    const oversizedFiles = files.filter((f) => f.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles
+        .map((f) => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`)
+        .join(", ");
+      toast.error(`Some files exceed 50MB limit:\n${fileNames}`);
+      return;
+    }
+
+    setColorWearableMediaUploading(true);
+    showLoader("Uploading color wearable media...");
+
+    try {
+      const uploadPromises = files.map((file) => {
+        const uploadData = new FormData();
+        uploadData.append("file", file);
+        return fetch("/api/products/upload", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: uploadData,
+        }).then((res) => res.json());
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const newMedia = [];
+      results.forEach((data) => {
+        if (data.success && data.files) {
+          data.files.forEach((f) => {
+            newMedia.push({
+              url: f.url,
+              mediaType: f.mediaType,
+            });
+          });
+        }
+      });
+
+      setTempColorWearableMedia((prev) => [...prev, ...newMedia]);
+      toast.success("Media uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error uploading files");
+    } finally {
+      setColorWearableMediaUploading(false);
+      hideLoader();
+    }
+  };
+
+  const handleRemoveTempColorWearableMedia = (idx) => {
+    setTempColorWearableMedia((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddColorImage = () => {
+    if (!tempColor) {
+      toast.warning("Please choose/enter a color first.");
+      return;
+    }
+    if (!tempColorMainImage) {
+      toast.warning("Please upload a Main Image for this color.");
+      return;
+    }
+    if (!tempColorWearableMedia || tempColorWearableMedia.length === 0) {
+      toast.warning("Please upload at least one Wearable Media item for this color.");
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      colorImages: [
+        ...(prev.colorImages || []),
+        {
+          color: tempColor,
+          mainImage: tempColorMainImage,
+          wearableMedia: tempColorWearableMedia,
+        },
+      ],
+    }));
+
+    toast.success("Color variant added successfully!");
+    // Reset temp images, but keep color choice
+    setTempColorMainImage("");
+    setTempColorWearableMedia([]);
+  };
+
+  const handleRemoveColorImage = (idx) => {
+    setFormData((prev) => ({
+      ...prev,
+      colorImages: (prev.colorImages || []).filter((_, i) => i !== idx),
+    }));
+    toast.success("Color variant removed.");
+  };
+
   const handleRemoveVariant = (idx) => {
     const updated = (formData.variants || []).filter((_, i) => i !== idx);
     setFormData({ ...formData, variants: updated });
@@ -453,6 +608,10 @@ const Products = ({ token }) => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.categories || formData.categories.length === 0) {
+      toast.warning("Please select at least one category before saving the product.");
+      return;
+    }
     if (!formData.mainImage) {
       toast.warning("please upload image on creating product");
       return;
@@ -1243,6 +1402,277 @@ const Products = ({ token }) => {
                   )}
               </div>
             </div>
+
+            {/* Color Pick & Image Upload Section */}
+            <div
+              className="form-group"
+              style={{
+                border: "1px dashed var(--border-color)",
+                borderRadius: "8px",
+                padding: "16px",
+                backgroundColor: "rgba(0,0,0,0.01)",
+              }}
+            >
+              <label style={{ fontWeight: "bold" }}>
+                Color-Wise Images (Variants)
+              </label>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  margin: "2px 0 10px 0",
+                }}
+              >
+                Choose a color from the picker or type hex code, upload its respective main image & wearable image, and add it.
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  backgroundColor: "rgba(0,0,0,0.02)",
+                  padding: "12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-color)",
+                  marginBottom: "12px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: "600" }}>Color:</label>
+                    <input
+                      type="color"
+                      value={tempColor}
+                      onChange={(e) => setTempColor(e.target.value)}
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        padding: "0",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                      }}
+                    />
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={tempColor}
+                      onChange={(e) => setTempColor(e.target.value)}
+                      placeholder="#000000"
+                      style={{ width: "95px", padding: "4px 8px", height: "36px" }}
+                    />
+                  </div>
+
+                  {/* Main Image Upload */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="color-main-upload"
+                      style={{ display: "none" }}
+                      onChange={handleColorMainImageUpload}
+                    />
+                    <label
+                      htmlFor="color-main-upload"
+                      className="btn btn-secondary"
+                      style={{
+                        cursor: "pointer",
+                        height: "36px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {colorMainImageUploading ? "Uploading..." : "Upload Main Image"}
+                    </label>
+                    {tempColorMainImage && (
+                      <div
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "4px",
+                          overflow: "hidden",
+                          border: "1px solid var(--border-color)",
+                          position: "relative"
+                        }}
+                      >
+                        <img src={tempColorMainImage} alt="Main" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <button
+                          type="button"
+                          onClick={() => setTempColorMainImage("")}
+                          style={{
+                            position: "absolute", top: "0", right: "0", background: "red", color: "white", border: "none", width: "14px", height: "14px", fontSize: "10px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer"
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                                   {/* Wearable Media Upload (Multiple Files) */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "1px solid var(--border-color)", paddingLeft: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        id="color-wearable-upload"
+                        style={{ display: "none" }}
+                        onChange={handleColorWearableMediaUpload}
+                      />
+                      <label
+                        htmlFor="color-wearable-upload"
+                        className="btn btn-secondary"
+                        style={{
+                          cursor: "pointer",
+                          height: "36px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "0 12px",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {colorWearableMediaUploading ? "Uploading..." : "Upload Wearable Media"}
+                      </label>
+                    </div>
+                    {/* Previews of tempColorWearableMedia */}
+                    {tempColorWearableMedia && tempColorWearableMedia.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "4px" }}>
+                        {tempColorWearableMedia.map((media, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "4px",
+                              overflow: "hidden",
+                              border: "1px solid var(--border-color)",
+                              position: "relative",
+                              backgroundColor: "#000"
+                            }}
+                          >
+                            {media.mediaType === "video" ? (
+                              <video src={media.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <img src={media.url} alt="Wearable Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTempColorWearableMedia(idx)}
+                              style={{
+                                position: "absolute", top: "0", right: "0", background: "rgba(220, 38, 38, 0.8)", color: "white", border: "none", width: "12px", height: "12px", fontSize: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", borderRadius: "50%"
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+ 
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleAddColorImage}
+                    style={{
+                      height: "36px",
+                      padding: "0 16px",
+                      fontSize: "12px",
+                      backgroundColor: "var(--primary-color, #07512E)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Add Color
+                  </button>
+                </div>
+              </div>
+ 
+              {/* List of colorImages currently added */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {(formData.colorImages || []).map((ci, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 12px",
+                      backgroundColor: "white",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          backgroundColor: ci.color,
+                          border: "1px solid #ccc",
+                          display: "inline-block"
+                        }}
+                        title={ci.color}
+                      />
+                      <span style={{ fontSize: "13px", fontFamily: "monospace" }}>{ci.color}</span>
+                    </div>
+ 
+                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Main Image</span>
+                        <img src={ci.mainImage} alt="Main" style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "4px", border: "1px solid #eee" }} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "160px" }}>
+                        <span style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "2px" }}>Wearable Media</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", justifyContent: "center" }}>
+                          {(ci.wearableMedia || []).map((media, mIdx) => (
+                            <div
+                              key={mIdx}
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                border: "1px solid #eee",
+                                borderRadius: "4px",
+                                overflow: "hidden",
+                                backgroundColor: "#000",
+                                position: "relative"
+                              }}
+                            >
+                              {media.mediaType === "video" ? (
+                                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "8px" }}>🎬</div>
+                              ) : (
+                                <img src={media.url} alt={`Wearable ${mIdx}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveColorImage(idx)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "red",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: "bold"
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>      </div>
 
             {/* <div className="form-group">
               <label>Fallback Media Image URLs (comma separated)</label>

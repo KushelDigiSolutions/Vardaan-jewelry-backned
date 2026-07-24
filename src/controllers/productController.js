@@ -142,7 +142,7 @@ export const getProductBySlug = async (req, res, next) => {
 // Create product (Admin)
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages } = req.body;
 
     const skuExists = await Product.findOne({ sku });
     if (skuExists) {
@@ -195,6 +195,11 @@ export const createProduct = async (req, res, next) => {
       parsedSizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
     }
 
+    let parsedColorImages = [];
+    if (colorImages) {
+      parsedColorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
+    }
+
     let parsedCategories = [];
     if (categories) {
       parsedCategories = typeof categories === 'string' ? JSON.parse(categories) : categories;
@@ -219,6 +224,7 @@ export const createProduct = async (req, res, next) => {
       images,
       mainImage: resolvedMainImage,
       wearableMedia: parsedWearableMedia,
+      colorImages: parsedColorImages,
       isActive: isActive !== undefined ? isActive : true,
       attributes: parsedAttributes,
       variants: parsedVariants,
@@ -243,7 +249,7 @@ export const createProduct = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages } = req.body;
 
     const product = await Product.findById(id);
     if (!product) {
@@ -290,6 +296,10 @@ export const updateProduct = async (req, res, next) => {
 
     if (sizes !== undefined) {
       product.sizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+    }
+
+    if (colorImages !== undefined) {
+      product.colorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
     }
 
     // Handle inventory adjustment
@@ -410,7 +420,8 @@ export const bulkImportProducts = async (req, res, next) => {
           isFeatured: item.isFeatured !== undefined ? item.isFeatured : false,
           attributes: item.attributes || [],
           variants: item.variants || [],
-          sizes: item.sizes || []
+          sizes: item.sizes || [],
+          colorImages: item.colorImages || []
         });
 
         await InventoryLog.create({
