@@ -89,6 +89,7 @@ const Products = ({ token }) => {
     isActive: true,
     images: "", // Comma separated URLs
     mainImage: "",
+    color: "",
     wearableMedia: [], // Array of {url, mediaType}
     attributes: [], // Array of {key, value}
     variants: [], // Array of variants
@@ -211,6 +212,7 @@ const Products = ({ token }) => {
       isActive: true,
       images: "",
       mainImage: "",
+      color: "",
       wearableMedia: [],
       attributes: [],
       variants: [],
@@ -242,6 +244,7 @@ const Products = ({ token }) => {
       isActive: product.isActive,
       images: product.images ? product.images.join(", ") : "",
       mainImage: product.mainImage || "",
+      color: product.color || "",
       wearableMedia: product.wearableMedia || [],
       attributes: product.attributes || [],
       variants: product.variants || [],
@@ -639,6 +642,10 @@ const Products = ({ token }) => {
     }
     if (!formData.mainImage) {
       toast.warning("please upload image on creating product");
+      return;
+    }
+    if (formData.colorImages && formData.colorImages.length > 0 && !formData.color) {
+      toast.warning("Please specify the Main Product Color. Since you have added color variants, the main product color is required.");
       return;
     }
     setSubmitting(true);
@@ -1425,6 +1432,71 @@ const Products = ({ token }) => {
                       ))}
                     </div>
                   )}
+              </div>
+            </div>
+
+            {/* Main Product Color Option */}
+            <div
+              className="form-group"
+              style={{
+                border: "1px dashed var(--border-color)",
+                borderRadius: "8px",
+                padding: "16px",
+                backgroundColor: "rgba(0,0,0,0.01)",
+              }}
+            >
+              <label style={{ fontWeight: "bold" }}>
+                Main Product Color{" "}
+                {formData.colorImages && formData.colorImages.length > 0 && (
+                  <span style={{ color: "var(--danger)" }}>*</span>
+                )}
+              </label>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted)",
+                  margin: "2px 0 10px 0",
+                }}
+              >
+                Specify the color for the main product. This is optional, but becomes required if you add any color variants below.
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <input
+                  type="color"
+                  value={formData.color || "#000000"}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    padding: "0",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                />
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.color || ""}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  placeholder="e.g. #07512E or Emerald Green"
+                  style={{ width: "250px", padding: "4px 8px", height: "36px" }}
+                />
+                {formData.color && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setFormData({ ...formData, color: "" })}
+                    style={{
+                      height: "36px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    Clear Color
+                  </button>
+                )}
               </div>
             </div>
 

@@ -142,7 +142,7 @@ export const getProductBySlug = async (req, res, next) => {
 // Create product (Admin)
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages, color } = req.body;
 
     const skuExists = await Product.findOne({ sku });
     if (skuExists) {
@@ -223,6 +223,7 @@ export const createProduct = async (req, res, next) => {
       categories: parsedCategories,
       images,
       mainImage: resolvedMainImage,
+      color: color || '',
       wearableMedia: parsedWearableMedia,
       colorImages: parsedColorImages,
       isActive: isActive !== undefined ? isActive : true,
@@ -249,7 +250,7 @@ export const createProduct = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages, color } = req.body;
 
     const product = await Product.findById(id);
     if (!product) {
@@ -331,6 +332,10 @@ export const updateProduct = async (req, res, next) => {
 
     if (wearableMedia !== undefined) {
       product.wearableMedia = typeof wearableMedia === 'string' ? JSON.parse(wearableMedia) : wearableMedia;
+    }
+
+    if (color !== undefined) {
+      product.color = color;
     }
 
     // Ensure mainImage is at the front of images array
@@ -415,6 +420,7 @@ export const bulkImportProducts = async (req, res, next) => {
           categories: categoryId ? [categoryId] : [],
           images: imagesList,
           mainImage: resolvedMainImage,
+          color: item.color || '',
           wearableMedia: item.wearableMedia || [],
           isActive: item.isActive !== undefined ? item.isActive : true,
           isFeatured: item.isFeatured !== undefined ? item.isFeatured : false,

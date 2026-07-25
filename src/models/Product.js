@@ -12,6 +12,7 @@ const productSchema = new mongoose.Schema({
   categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
   images: [{ type: String }],
   mainImage: { type: String, default: '' },
+  color: { type: String, default: '' },
   wearableMedia: [
     {
       url: { type: String, required: true },

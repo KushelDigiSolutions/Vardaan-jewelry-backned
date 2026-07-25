@@ -48,6 +48,7 @@ export const formatProductsForExport = (products) => {
       Sizes: sizesStr,
       WearableMedia: wearableMediaStr,
       ColorImages: colorImagesStr,
+      Color: p.color || '',
       IsActive: p.isActive !== false ? 'TRUE' : 'FALSE'
     };
   });
@@ -218,6 +219,8 @@ export const parseImportRows = (rows) => {
       });
     }
 
+    const color = String(row.Color || row.color || '').trim();
+
     return {
       sku,
       name,
@@ -232,6 +235,7 @@ export const parseImportRows = (rows) => {
       sizes,
       wearableMedia,
       colorImages,
+      color,
       isActive
     };
   });

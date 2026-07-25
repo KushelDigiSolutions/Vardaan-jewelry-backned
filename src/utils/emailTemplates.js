@@ -48,6 +48,8 @@ export const getInvoiceEmailTemplate = (order) => {
           <p style="color: #555555; font-size: 15px; line-height: 1.7; margin: 0;">We have successfully received the payment for your order. Your transaction is complete and the order is confirmed for fulfillment. Here is your receipt summary:</p>
           
           <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
+            <tr><td style="color: #8C7547;"><strong>Seller:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">Vardaan Jewels</td></tr>
+            <tr><td style="color: #8C7547;"><strong>GSTIN:</strong></td><td style="text-align: right; font-family: monospace; font-weight: bold; color: #303030;">09BDEPJ1387D1ZN</td></tr>
             <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Payment Method:</strong></td><td style="text-align: right; color: #303030; text-transform: uppercase;">${order.paymentMethod}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Transaction Date:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td></tr>
@@ -89,7 +91,7 @@ export const getInvoiceEmailTemplate = (order) => {
                 <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString("en-IN")}</td>
               </tr>
               <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Paid:</td>
+                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Paid <span style="font-size: 11px; font-weight: normal; color: #555555; display: block;">(Inclusive of GST)</span>:</td>
                 <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString("en-IN")}</td>
               </tr>
             </tbody>
@@ -104,7 +106,8 @@ export const getInvoiceEmailTemplate = (order) => {
           </p>
 
           <p style="color: #555555; font-size: 15px; line-height: 1.7; margin-top: 30px;">Your items will be packaged and prepared for shipping shortly. We will update you with tracking details once dispatched.</p>
-          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
+          <p style="color: #777777; font-size: 12px; line-height: 1.5; margin-top: 15px; border-top: 1px dashed #E5DCC5; padding-top: 10px;">* Note: All prices shown are inclusive of GST.</p>
+          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin-top: 20px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
           <p>Vardaan Jewels</p>
@@ -356,6 +359,8 @@ export const getOrderPlacedEmailTemplate = (order) => {
           <p class="lead-text">Thank you for placing your order with Vardaan. We are delighted to assist you with your select jewelry collection. Here is a summary of your order details:</p>
           
           <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
+            <tr><td style="color: #8C7547;"><strong>Seller:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">Vardaan Jewels</td></tr>
+            <tr><td style="color: #8C7547;"><strong>GSTIN:</strong></td><td style="text-align: right; font-family: monospace; font-weight: bold; color: #303030;">09BDEPJ1387D1ZN</td></tr>
             <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Payment Mode:</strong></td><td style="text-align: right; color: #303030;">${order.paymentMethod}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Date Placed:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td></tr>
@@ -396,7 +401,7 @@ export const getOrderPlacedEmailTemplate = (order) => {
                 <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString("en-IN")}</td>
               </tr>
               <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Amount:</td>
+                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Amount <span style="font-size: 11px; font-weight: normal; color: #555555; display: block;">(Inclusive of GST)</span>:</td>
                 <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString("en-IN")}</td>
               </tr>
             </tbody>
@@ -411,7 +416,8 @@ export const getOrderPlacedEmailTemplate = (order) => {
           </p>
 
           <p class="lead-text" style="margin-top: 30px;">We are currently verifying the order and preparing it for processing. You will receive another update as soon as your package is dispatched.</p>
-          <p class="lead-text" style="margin-top: 30px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
+          <p style="color: #777777; font-size: 12px; line-height: 1.5; margin-top: 15px; border-top: 1px dashed #E5DCC5; padding-top: 10px;">* Note: All prices shown are inclusive of GST.</p>
+          <p class="lead-text" style="margin-top: 20px; font-style: italic;">Warmest regards,<br/><b>The Vardaan Team</b></p>
         </div>
         <div class="footer">
           <p>Vardaan Jewels</p>
