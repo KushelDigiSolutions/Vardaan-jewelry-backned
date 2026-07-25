@@ -252,12 +252,12 @@ const DashboardHome = ({ token, onViewChange }) => {
                       </div>
                     </td>
                     <td>
-                      <span className={`badge badge-${o.paymentStatus === 'paid' ? 'success' : o.paymentStatus === 'pending' ? 'warning' : 'danger'}`}>
+                      <span className={`badge text-capitalize badge-${o.paymentStatus === 'paid' ? 'success' : o.paymentStatus === 'pending' ? 'warning' : 'danger'}`}>
                         {o.paymentStatus}
                       </span>
                     </td>
                     <td>
-                      <span className={`badge badge-${
+                      <span className={`badge text-capitalize badge-${
                         o.orderStatus === 'delivered' ? 'success' :
                         o.orderStatus === 'shipped' ? 'info' :
                         o.orderStatus === 'confirmed' ? 'info' :

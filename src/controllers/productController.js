@@ -41,14 +41,48 @@ export const getProducts = async (req, res, next) => {
       if (selectedCategory) {
         const subCategories = await Category.find({ parentCategory: category });
         const categoryIds = [category, ...subCategories.map(c => c._id)];
-        query.category = { $in: categoryIds };
+        query.$or = [
+          { category: { $in: categoryIds } },
+          { categories: { $in: categoryIds } }
+        ];
       }
     }
 
     if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = Number(minPrice);
-      if (maxPrice) query.price.$lte = Number(maxPrice);
+      const salePriceCond = { $gt: 0 };
+      if (minPrice) salePriceCond.$gte = Number(minPrice);
+      if (maxPrice) salePriceCond.$lte = Number(maxPrice);
+
+      const priceCond = {};
+      if (minPrice) priceCond.$gte = Number(minPrice);
+      if (maxPrice) priceCond.$lte = Number(maxPrice);
+
+      const priceFilterOr = [
+        {
+          salePrice: salePriceCond
+        },
+        {
+          $and: [
+            {
+              $or: [
+                { salePrice: { $exists: false } },
+                { salePrice: 0 },
+                { salePrice: null }
+              ]
+            },
+            {
+              price: priceCond
+            }
+          ]
+        }
+      ];
+
+      if (query.$or) {
+        query.$and = query.$and || [];
+        query.$and.push({ $or: priceFilterOr });
+      } else {
+        query.$or = priceFilterOr;
+      }
     }
 
     // Apply sorting
@@ -68,6 +102,7 @@ export const getProducts = async (req, res, next) => {
     const total = await Product.countDocuments(query);
     const products = await Product.find(query)
       .populate('category', 'name slug')
+      .populate('categories', 'name slug')
       .sort(sortOptions)
       .skip(skip)
       .limit(Number(limit));
@@ -92,7 +127,9 @@ export const getProducts = async (req, res, next) => {
 export const getProductBySlug = async (req, res, next) => {
   try {
     const { slug } = req.params;
-    const product = await Product.findOne({ slug, isActive: true }).populate('category', 'name slug');
+    const product = await Product.findOne({ slug, isActive: true })
+      .populate('category', 'name slug')
+      .populate('categories', 'name slug');
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -105,7 +142,7 @@ export const getProductBySlug = async (req, res, next) => {
 // Create product (Admin)
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia, sizes } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages, color } = req.body;
 
     const skuExists = await Product.findOne({ sku });
     if (skuExists) {
@@ -158,6 +195,23 @@ export const createProduct = async (req, res, next) => {
       parsedSizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
     }
 
+    let parsedColorImages = [];
+    if (colorImages) {
+      parsedColorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
+    }
+
+    let parsedCategories = [];
+    if (categories) {
+      parsedCategories = typeof categories === 'string' ? JSON.parse(categories) : categories;
+    }
+
+    let resolvedCategory = category;
+    if (parsedCategories.length > 0) {
+      resolvedCategory = parsedCategories[0];
+    } else if (resolvedCategory && parsedCategories.length === 0) {
+      parsedCategories = [resolvedCategory];
+    }
+
     const product = await Product.create({
       name,
       description,
@@ -165,10 +219,13 @@ export const createProduct = async (req, res, next) => {
       salePrice: salePrice ? Number(salePrice) : 0,
       sku,
       inventory: Number(inventory) || 0,
-      category,
+      category: resolvedCategory,
+      categories: parsedCategories,
       images,
       mainImage: resolvedMainImage,
+      color: color || '',
       wearableMedia: parsedWearableMedia,
+      colorImages: parsedColorImages,
       isActive: isActive !== undefined ? isActive : true,
       attributes: parsedAttributes,
       variants: parsedVariants,
@@ -193,7 +250,7 @@ export const createProduct = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, price, salePrice, sku, inventory, category, isActive, attributes, variants, mainImage, wearableMedia, sizes } = req.body;
+    const { name, description, price, salePrice, sku, inventory, category, categories, isActive, attributes, variants, mainImage, wearableMedia, sizes, colorImages, color } = req.body;
 
     const product = await Product.findById(id);
     if (!product) {
@@ -216,7 +273,18 @@ export const updateProduct = async (req, res, next) => {
     if (description) product.description = description;
     if (price !== undefined) product.price = Number(price);
     if (salePrice !== undefined) product.salePrice = Number(salePrice);
-    if (category) product.category = category;
+    
+    if (categories !== undefined) {
+      const parsedCategories = typeof categories === 'string' ? JSON.parse(categories) : categories;
+      product.categories = parsedCategories;
+      if (parsedCategories.length > 0) {
+        product.category = parsedCategories[0];
+      }
+    } else if (category !== undefined) {
+      product.category = category;
+      product.categories = [category];
+    }
+
     if (isActive !== undefined) product.isActive = isActive;
 
     if (attributes) {
@@ -229,6 +297,10 @@ export const updateProduct = async (req, res, next) => {
 
     if (sizes !== undefined) {
       product.sizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+    }
+
+    if (colorImages !== undefined) {
+      product.colorImages = typeof colorImages === 'string' ? JSON.parse(colorImages) : colorImages;
     }
 
     // Handle inventory adjustment
@@ -260,6 +332,10 @@ export const updateProduct = async (req, res, next) => {
 
     if (wearableMedia !== undefined) {
       product.wearableMedia = typeof wearableMedia === 'string' ? JSON.parse(wearableMedia) : wearableMedia;
+    }
+
+    if (color !== undefined) {
+      product.color = color;
     }
 
     // Ensure mainImage is at the front of images array
@@ -341,14 +417,17 @@ export const bulkImportProducts = async (req, res, next) => {
           sku: item.sku,
           inventory: Number(item.inventory) || 0,
           category: categoryId,
+          categories: categoryId ? [categoryId] : [],
           images: imagesList,
           mainImage: resolvedMainImage,
+          color: item.color || '',
           wearableMedia: item.wearableMedia || [],
           isActive: item.isActive !== undefined ? item.isActive : true,
           isFeatured: item.isFeatured !== undefined ? item.isFeatured : false,
           attributes: item.attributes || [],
           variants: item.variants || [],
-          sizes: item.sizes || []
+          sizes: item.sizes || [],
+          colorImages: item.colorImages || []
         });
 
         await InventoryLog.create({
@@ -379,7 +458,7 @@ export const bulkImportProducts = async (req, res, next) => {
 // Bulk Export Products (Admin)
 export const bulkExportProducts = async (req, res, next) => {
   try {
-    const products = await Product.find().populate('category', 'name');
+    const products = await Product.find().populate('category', 'name').populate('categories', 'name');
     res.status(200).json({ success: true, data: products });
   } catch (error) {
     next(error);
@@ -390,7 +469,13 @@ export const bulkExportProducts = async (req, res, next) => {
 export const getProductsByCategory = async (req, res, next) => {
   try {
     const { categoryId } = req.params;
-    const products = await Product.find({ category: categoryId, isActive: true }).populate('category', 'name slug');
+    const products = await Product.find({
+      $or: [
+        { category: categoryId },
+        { categories: categoryId }
+      ],
+      isActive: true
+    }).populate('category', 'name slug').populate('categories', 'name slug');
     res.status(200).json({ success: true, data: products });
   } catch (error) {
     next(error);
@@ -400,7 +485,9 @@ export const getProductsByCategory = async (req, res, next) => {
 // Get featured products
 export const getFeaturedProducts = async (req, res, next) => {
   try {
-    const products = await Product.find({ isFeatured: true, isActive: true }).populate('category', 'name slug');
+    const products = await Product.find({ isFeatured: true, isActive: true })
+      .populate('category', 'name slug')
+      .populate('categories', 'name slug');
     res.status(200).json({ success: true, data: products });
   } catch (error) {
     next(error);
@@ -412,6 +499,7 @@ export const getBestSellers = async (req, res, next) => {
   try {
     const products = await Product.find({ isActive: true })
       .populate('category', 'name slug')
+      .populate('categories', 'name slug')
       .sort({ salesCount: -1 })
       .limit(10);
     res.status(200).json({ success: true, data: products });
@@ -423,7 +511,9 @@ export const getBestSellers = async (req, res, next) => {
 // Get single product by ID
 export const getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id).populate('category', 'name slug');
+    const product = await Product.findById(req.params.id)
+      .populate('category', 'name slug')
+      .populate('categories', 'name slug');
     if (!product || !product.isActive) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }

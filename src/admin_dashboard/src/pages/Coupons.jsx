@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Percent, Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
+import { useLoader } from '../context/LoaderContext.jsx';
 
 const Coupons = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -15,7 +19,7 @@ const Coupons = ({ token }) => {
 
   const handleSearchChange = (val) => {
     setSearchTerm(val);
-    setPage(1);
+    setPage(1);  
   };
 
   const handleStatusFilterChange = (val) => {
@@ -69,30 +73,30 @@ const Coupons = ({ token }) => {
     e.preventDefault();
     
     if (!code || !code.trim()) {
-      alert('Please fill out the Coupon Code Name field.');
+      toast.warning('Please fill out the Coupon Code Name field.');
       return;
     }
     if (!discountValue) {
-      alert('Please fill out the Discount Value field.');
+      toast.warning('Please fill out the Discount Value field.');
       return;
     }
     if (!startDate) {
-      alert('Please fill out the Start Date & Time field.');
+      toast.warning('Please fill out the Start Date & Time field.');
       return;
     }
     if (!expiryDate) {
-      alert('Please fill out the Expiry Date & Time field.');
+      toast.warning('Please fill out the Expiry Date & Time field.');
       return;
     }
 
     // Validation: Discount Value & Type range
     const dVal = Number(discountValue);
     if (isNaN(dVal) || dVal <= 0) {
-      alert('Discount Value must be a valid number greater than 0.');
+      toast.warning('Discount Value must be a valid number greater than 0.');
       return;
     }
     if (discountType === 'percentage' && (dVal < 1 || dVal > 99)) {
-      alert('Percentage discount must be between 1 and 99.');
+      toast.warning('Percentage discount must be between 1 and 99.');
       return;
     }
 
@@ -100,7 +104,7 @@ const Coupons = ({ token }) => {
     if (minOrderAmount !== '') {
       const minAmt = Number(minOrderAmount);
       if (isNaN(minAmt) || minAmt < 0) {
-        alert('Minimum Order Threshold must be 0 or more.');
+        toast.warning('Minimum Order Threshold must be 0 or more.');
         return;
       }
     }
@@ -109,7 +113,7 @@ const Coupons = ({ token }) => {
     if (usageLimit !== '') {
       const limit = Number(usageLimit);
       if (isNaN(limit) || limit < 1) {
-        alert('Max Usage Limit must be 1 or more.');
+        toast.warning('Max Usage Limit must be 1 or more.');
         return;
       }
     }
@@ -121,17 +125,18 @@ const Coupons = ({ token }) => {
     // Validation: Start Date must be today or in the future
     // Allow a small 1-minute buffer for client-server clock sync issues
     if (sDate < new Date(now.getTime() - 60000)) {
-      alert('Start Date & Time must be today or in the future.');
+      toast.warning('Start Date & Time must be today or in the future.');
       return;
     }
 
     // Validation: Expiry Date must be after Start Date
     if (eDate <= sDate) {
-      alert('Expiry Date & Time must be after the Start Date & Time.');
+      toast.warning('Expiry Date & Time must be after the Start Date & Time.');
       return;
     }
 
     setFormLoading(true);
+    showLoader('Creating coupon...');
     try {
       const res = await fetch('/api/coupons', {
         method: 'POST',
@@ -152,7 +157,7 @@ const Coupons = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert('Coupon created successfully!');
+        toast.success('Coupon created successfully!');
         setCode('');
         setDiscountValue('');
         setMinOrderAmount('');
@@ -161,18 +166,20 @@ const Coupons = ({ token }) => {
         setUsageLimit('');
         fetchCoupons();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Failed to create coupon');
       }
     } catch (err) {
       console.error(err);
-      alert('Error creating coupon');
+      toast.error('Error creating coupon');
     } finally {
       setFormLoading(false);
+      hideLoader();
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this promo code?')) return;
+    showLoader('Deleting coupon...');
     try {
       const res = await fetch(`/api/coupons/${id}`, {
         method: 'DELETE',
@@ -180,13 +187,16 @@ const Coupons = ({ token }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || 'Promo code deleted successfully!');
         fetchCoupons();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Failed to delete promo code');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error deleting promo code');
+    } finally {
+      hideLoader();
     }
   };
 

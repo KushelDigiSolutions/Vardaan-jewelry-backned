@@ -1,25 +1,35 @@
-import User from '../models/User.js';
-import Cart from '../models/Cart.js';
-import { generateToken, generateOTP } from '../utils/helper.js';
-import { sendEmail } from '../utils/email.js';
-import { getWelcomeEmailTemplate, getForgotPasswordEmailTemplate } from '../utils/emailTemplates.js';
+import User from "../models/User.js";
+import Cart from "../models/Cart.js";
+import { generateToken, generateOTP } from "../utils/helper.js";
+import { sendEmail } from "../utils/email.js";
+import {
+  getWelcomeEmailTemplate,
+  getForgotPasswordEmailTemplate,
+} from "../utils/emailTemplates.js";
 
 // Register User
 export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, mobile } = req.body;
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long, and include at least one uppercase letter, one lowercase letter, one number, and one special character.'
+        message:
+          "Password must be at least 8 characters long, and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
       });
     }
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: { $regex: new RegExp("^" + email.trim() + "$", "i") } });
     if (userExists) {
-      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "User already exists with this email",
+        });
     }
 
     const otp = generateOTP();
@@ -29,12 +39,12 @@ export const registerUser = async (req, res, next) => {
       name,
       email,
       password,
-      mobile: mobile || '',
+      mobile: mobile || "",
       otp,
       otpExpires,
-      emailVerified: false
+      emailVerified: false,
     });
-    
+
     // Create an empty cart for the new user
     await Cart.create({ user: user._id, items: [] });
 
@@ -42,16 +52,20 @@ export const registerUser = async (req, res, next) => {
     const emailHtml = getWelcomeEmailTemplate(name, otp);
     await sendEmail({
       to: email,
-      subject: 'Welcome to Vardaan - Verify Your Email Account',
+      subject: "Welcome to Vardaan - Verify Your Email Account",
       text: `Welcome to Vardaan! Your verification OTP is: ${otp}. This code is valid for 24 hours.`,
-      html: emailHtml
+      html: emailHtml,
     });
 
     // Also log to console for debugging/simulated flow fallback
-    console.log(`\n=================== [MOCK SIGNUP OTP LOG] ===================`);
+    console.log(
+      `\n=================== [MOCK SIGNUP OTP LOG] ===================`,
+    );
     console.log(`EMAIL: ${email}`);
     console.log(`OTP CODE: ${otp}`);
-    console.log(`=============================================================\n`);
+    console.log(
+      `=============================================================\n`,
+    );
 
     res.status(201).json({
       success: true,
@@ -60,8 +74,8 @@ export const registerUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id)
-      }
+        token: generateToken(user._id),
+      },
     });
   } catch (error) {
     next(error);
@@ -72,14 +86,49 @@ export const registerUser = async (req, res, next) => {
 export const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
 
-    const user = await User.findOne({ email });
+    if (!normalizedEmail || !password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and password are required" });
+    }
+
+    const user = await User.findOne({ email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") } });
     if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({ success: false, message: 'Your account has been suspended' });
+      return res
+        .status(403)
+        .json({ success: false, message: "Your account has been suspended" });
+    }
+
+    if (user.role === "admin" && !user.emailVerified) {
+      const otp = generateOTP();
+      user.otp = otp;
+      user.otpExpires = Date.now() + 24 * 60 * 60 * 1000;
+      await user.save();
+
+      const emailHtml = getWelcomeEmailTemplate(user.name || "Admin", otp);
+      await sendEmail({
+        to: user.email,
+        subject: "Verify Your Vardaan Admin Dashboard Access",
+        text: `Please verify your email to continue using the Vardaan admin dashboard. Your verification code is: ${otp}`,
+        html: emailHtml,
+      });
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "Please verify your email before signing in. A new verification code has been sent.",
+        requiresVerification: true,
+        email: user.email,
+      });
     }
 
     res.status(200).json({
@@ -89,8 +138,8 @@ export const loginUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id)
-      } 
+        token: generateToken(user._id),
+      },
     });
   } catch (error) {
     next(error);
@@ -101,9 +150,11 @@ export const loginUser = async (req, res, next) => {
 export const sendOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: { $regex: new RegExp("^" + email.trim() + "$", "i") } });
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found with this email' });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found with this email" });
     }
 
     const otp = generateOTP();
@@ -114,12 +165,14 @@ export const sendOTP = async (req, res, next) => {
     // Mock send OTP
     await sendEmail({
       to: email,
-      subject: 'Your Vardaan Store OTP Verification Code',
+      subject: "Your Vardaan Store OTP Verification Code",
       text: `Your OTP for login is: ${otp}. It is valid for 10 minutes.`,
-      html: `<h3>Your OTP for login is: <b>${otp}</b></h3><p>It is valid for 10 minutes.</p>`
+      html: `<h3>Your OTP for login is: <b>${otp}</b></h3><p>It is valid for 10 minutes.</p>`,
     });
 
-    res.status(200).json({ success: true, message: 'OTP sent to your registered email' });
+    res
+      .status(200)
+      .json({ success: true, message: "OTP sent to your registered email" });
   } catch (error) {
     next(error);
   }
@@ -129,10 +182,16 @@ export const sendOTP = async (req, res, next) => {
 export const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-    const user = await User.findOne({ email, otp, otpExpires: { $gt: Date.now() } });
-    
+    const user = await User.findOne({
+      email: { $regex: new RegExp("^" + email.trim() + "$", "i") },
+      otp,
+      otpExpires: { $gt: Date.now() },
+    });
+
     if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired OTP" });
     }
 
     // Clear OTP details
@@ -147,8 +206,8 @@ export const verifyOTP = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id)
-      }
+        token: generateToken(user._id),
+      },
     });
   } catch (error) {
     next(error);
@@ -158,26 +217,58 @@ export const verifyOTP = async (req, res, next) => {
 // Forgot Password
 export const forgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found with this email' });
+    const { email, role } = req.body;
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (!normalizedEmail) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
     }
 
-    const resetToken = generateOTP(); // Use a simpler token for testing
+    const query = { email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") } };
+    if (role === "admin") {
+      query.role = "admin";
+    }
+
+    const user = await User.findOne(query);
+    if (!user) {
+      if (role === "admin") {
+        return res.status(404).json({
+          success: false,
+          message: "Invalid email. No admin account found with this email.",
+        });
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "Invalid email. No user account found with this email.",
+        });
+      }
+    }
+
+    const resetToken = generateOTP();
     user.otp = resetToken;
     user.otpExpires = Date.now() + 30 * 60 * 1000; // 30 mins
     await user.save();
 
-    const emailHtml = getForgotPasswordEmailTemplate(user.name, resetToken);
+    const emailHtml = getForgotPasswordEmailTemplate(
+      user.name || (user.role === "admin" ? "Admin" : "Customer"),
+      resetToken,
+    );
     await sendEmail({
-      to: email,
-      subject: 'Vardaan Store Password Recovery Code',
+      to: user.email,
+      subject: user.role === "admin" ? "Reset Your Vardaan Admin Password" : "Reset Your Vardaan Account Password",
       text: `Use this recovery code to reset your password: ${resetToken}`,
-      html: emailHtml
+      html: emailHtml,
     });
 
-    res.status(200).json({ success: true, message: 'Password recovery code sent to your email' });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Password recovery code sent to your email",
+      });
   } catch (error) {
     next(error);
   }
@@ -186,18 +277,43 @@ export const forgotPassword = async (req, res, next) => {
 // Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
-    const { email, code, newPassword } = req.body;
-    const user = await User.findOne({ email, otp: code, otpExpires: { $gt: Date.now() } });
+    const { email, code, newPassword, role } = req.body;
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
 
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired recovery code' });
+    if (!normalizedEmail || !code || !newPassword) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Email, recovery code, and new password are required",
+        });
     }
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    const query = {
+      email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") },
+      otp: code,
+      otpExpires: { $gt: Date.now() },
+    };
+    if (role === "admin") {
+      query.role = "admin";
+    }
+
+    const user = await User.findOne(query);
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired recovery code" });
+    }
+
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
     if (!passwordRegex.test(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long, and include at least one uppercase letter, one lowercase letter, one number, and one special character.'
+        message:
+          "Password must be at least 8 characters long, and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
       });
     }
 
@@ -207,7 +323,9 @@ export const resetPassword = async (req, res, next) => {
     user.otpExpires = undefined;
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Password has been reset successfully' });
+    res
+      .status(200)
+      .json({ success: true, message: "Password has been reset successfully" });
   } catch (error) {
     next(error);
   }
@@ -216,7 +334,7 @@ export const resetPassword = async (req, res, next) => {
 // Get User Profile
 export const getUserProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select("-password");
     res.status(200).json({ success: true, data: user });
   } catch (error) {
     next(error);
@@ -242,8 +360,8 @@ export const updateUserProfile = async (req, res, next) => {
         email: user.email,
         mobile: user.mobile,
         role: user.role,
-        addresses: user.addresses
-      }
+        addresses: user.addresses,
+      },
     });
   } catch (error) {
     next(error);
@@ -274,9 +392,30 @@ export const toggleWishlist = async (req, res, next) => {
 export const verifyEmail = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-    const user = await User.findOne({ email, otp, otpExpires: { $gt: Date.now() } });
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (!normalizedEmail || !otp) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Email and verification code are required",
+        });
+    }
+
+    const user = await User.findOne({
+      email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") },
+      otp,
+      otpExpires: { $gt: Date.now() },
+    });
     if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired verification OTP' });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Invalid or expired verification OTP",
+        });
     }
 
     user.emailVerified = true;
@@ -284,7 +423,17 @@ export const verifyEmail = async (req, res, next) => {
     user.otpExpires = undefined;
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Email address verified successfully' });
+    res.status(200).json({
+      success: true,
+      message: "Email address verified successfully",
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: generateToken(user._id),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -294,17 +443,27 @@ export const verifyEmail = async (req, res, next) => {
 export const resendVerificationOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email address is required' });
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (!normalizedEmail) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email address is required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: { $regex: new RegExp("^" + normalizedEmail + "$", "i") }, role: "admin" });
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found with this email' });
+      return res.status(404).json({
+        success: false,
+        message: "Invalid email. No admin account found with this email.",
+      });
     }
 
     if (user.emailVerified) {
-      return res.status(400).json({ success: false, message: 'Email address is already verified' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email address is already verified" });
     }
 
     const otp = generateOTP();
@@ -312,20 +471,29 @@ export const resendVerificationOTP = async (req, res, next) => {
     user.otpExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
     await user.save();
 
-    const emailHtml = getWelcomeEmailTemplate(user.name, otp);
+    const emailHtml = getWelcomeEmailTemplate(user.name || "Admin", otp);
     await sendEmail({
-      to: email,
-      subject: 'Welcome to Vardaan - Verify Your Email Account',
-      text: `Welcome to Vardaan! Your verification OTP is: ${otp}. This code is valid for 24 hours.`,
-      html: emailHtml
+      to: user.email,
+      subject: "Verify Your Vardaan Admin Dashboard Access",
+      text: `Please verify your email to continue using the Vardaan admin dashboard. Your verification code is: ${otp}`,
+      html: emailHtml,
     });
 
-    console.log(`\n=================== [MOCK RESEND VERIFICATION OTP LOG] ===================`);
-    console.log(`EMAIL: ${email}`);
+    console.log(
+      `\n=================== [MOCK RESEND VERIFICATION OTP LOG] ===================`,
+    );
+    console.log(`EMAIL: ${user.email}`);
     console.log(`OTP CODE: ${otp}`);
-    console.log(`========================================================================\n`);
+    console.log(
+      `========================================================================\n`,
+    );
 
-    res.status(200).json({ success: true, message: 'Verification OTP has been resent to your email.' });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Verification OTP has been resent to your email.",
+      });
   } catch (error) {
     next(error);
   }
@@ -336,7 +504,9 @@ export const loginMobile = async (req, res, next) => {
   try {
     const { mobile } = req.body;
     if (!mobile) {
-      return res.status(400).json({ success: false, message: 'Mobile number is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Mobile number is required" });
     }
 
     let user = await User.findOne({ mobile });
@@ -347,7 +517,7 @@ export const loginMobile = async (req, res, next) => {
         email: `${mobile}@vardaanecom.com`,
         password: Math.random().toString(36).slice(-8),
         mobile,
-        mobileVerified: false
+        mobileVerified: false,
       });
       await Cart.create({ user: user._id, items: [] });
     }
@@ -363,7 +533,9 @@ export const loginMobile = async (req, res, next) => {
     console.log(`OTP CODE: ${otp}`);
     console.log(`==========================================================\n`);
 
-    res.status(200).json({ success: true, message: 'OTP verification code sent to mobile' });
+    res
+      .status(200)
+      .json({ success: true, message: "OTP verification code sent to mobile" });
   } catch (error) {
     next(error);
   }
@@ -373,9 +545,15 @@ export const loginMobile = async (req, res, next) => {
 export const verifyMobileOTP = async (req, res, next) => {
   try {
     const { mobile, otp } = req.body;
-    const user = await User.findOne({ mobile, otp, otpExpires: { $gt: Date.now() } });
+    const user = await User.findOne({
+      mobile,
+      otp,
+      otpExpires: { $gt: Date.now() },
+    });
     if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP code' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired OTP code" });
     }
 
     user.mobileVerified = true;
@@ -390,8 +568,8 @@ export const verifyMobileOTP = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id)
-      }
+        token: generateToken(user._id),
+      },
     });
   } catch (error) {
     next(error);
@@ -405,20 +583,26 @@ export const changePassword = async (req, res, next) => {
     const user = await User.findById(req.user._id);
 
     if (!(await user.comparePassword(oldPassword))) {
-      return res.status(401).json({ success: false, message: 'Invalid current password' });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid current password" });
     }
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
     if (!passwordRegex.test(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long, and include at least one uppercase letter, one lowercase letter, one number, and one special character.'
+        message:
+          "Password must be at least 8 characters long, and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
       });
     }
 
     user.password = newPassword;
     await user.save();
-    res.status(200).json({ success: true, message: 'Password updated successfully' });
+    res
+      .status(200)
+      .json({ success: true, message: "Password updated successfully" });
   } catch (error) {
     next(error);
   }
@@ -428,14 +612,22 @@ export const changePassword = async (req, res, next) => {
 export const uploadAvatar = async (req, res, next) => {
   try {
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ success: false, message: 'No image file uploaded' });
+      return res
+        .status(400)
+        .json({ success: false, message: "No image file uploaded" });
     }
 
     const user = await User.findById(req.user._id);
     user.avatar = req.files[0].path; // Cloudinary URL
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Avatar image uploaded successfully', avatar: user.avatar });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Avatar image uploaded successfully",
+        avatar: user.avatar,
+      });
   } catch (error) {
     next(error);
   }
@@ -445,9 +637,11 @@ export const uploadAvatar = async (req, res, next) => {
 export const removeAvatar = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
-    user.avatar = '';
+    user.avatar = "";
     await user.save();
-    res.status(200).json({ success: true, message: 'Avatar removed successfully' });
+    res
+      .status(200)
+      .json({ success: true, message: "Avatar removed successfully" });
   } catch (error) {
     next(error);
   }
@@ -458,11 +652,18 @@ export const deleteAccount = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
     user.isActive = false;
     await user.save();
-    res.status(200).json({ success: true, message: 'User account deactivated/suspended successfully' });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "User account deactivated/suspended successfully",
+      });
   } catch (error) {
     next(error);
   }
@@ -481,22 +682,25 @@ export const getAddresses = async (req, res, next) => {
 // Add Address
 export const addAddress = async (req, res, next) => {
   try {
-    const { title, street, city, state, zipCode, country, mobile, isDefault } = req.body;
+    const { title, street, city, state, zipCode, country, mobile, isDefault } =
+      req.body;
     const user = await User.findById(req.user._id);
 
     if (isDefault) {
-      user.addresses.forEach(addr => { addr.isDefault = false; });
+      user.addresses.forEach((addr) => {
+        addr.isDefault = false;
+      });
     }
 
     const newAddress = {
-      title: title || 'Home',
+      title: title || "Home",
       street,
       city,
       state,
       zipCode,
       country,
-      mobile: mobile || '',
-      isDefault: isDefault || user.addresses.length === 0
+      mobile: mobile || "",
+      isDefault: isDefault || user.addresses.length === 0,
     };
 
     user.addresses.push(newAddress);
@@ -512,16 +716,21 @@ export const addAddress = async (req, res, next) => {
 export const updateAddress = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, street, city, state, zipCode, country, mobile, isDefault } = req.body;
+    const { title, street, city, state, zipCode, country, mobile, isDefault } =
+      req.body;
     const user = await User.findById(req.user._id);
 
     const address = user.addresses.id(id);
     if (!address) {
-      return res.status(404).json({ success: false, message: 'Address not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Address not found" });
     }
 
     if (isDefault) {
-      user.addresses.forEach(addr => { addr.isDefault = false; });
+      user.addresses.forEach((addr) => {
+        addr.isDefault = false;
+      });
       address.isDefault = true;
     }
 
@@ -548,14 +757,24 @@ export const setDefaultAddress = async (req, res, next) => {
 
     const address = user.addresses.id(id);
     if (!address) {
-      return res.status(404).json({ success: false, message: 'Address not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Address not found" });
     }
 
-    user.addresses.forEach(addr => { addr.isDefault = false; });
+    user.addresses.forEach((addr) => {
+      addr.isDefault = false;
+    });
     address.isDefault = true;
 
     await user.save();
-    res.status(200).json({ success: true, message: 'Default address updated successfully', data: user.addresses });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Default address updated successfully",
+        data: user.addresses,
+      });
   } catch (error) {
     next(error);
   }
@@ -569,13 +788,21 @@ export const deleteAddress = async (req, res, next) => {
 
     const address = user.addresses.id(id);
     if (!address) {
-      return res.status(404).json({ success: false, message: 'Address not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Address not found" });
     }
 
     user.addresses.pull(id);
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Address removed successfully', data: user.addresses });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Address removed successfully",
+        data: user.addresses,
+      });
   } catch (error) {
     next(error);
   }
@@ -584,7 +811,7 @@ export const deleteAddress = async (req, res, next) => {
 // Wishlist Detail Lists Get
 export const getWishlist = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).populate('wishlist');
+    const user = await User.findById(req.user._id).populate("wishlist");
     res.status(200).json({ success: true, data: user.wishlist });
   } catch (error) {
     next(error);
@@ -602,7 +829,13 @@ export const addToWishlist = async (req, res, next) => {
       await user.save();
     }
 
-    res.status(200).json({ success: true, message: 'Product added to wishlist', data: user.wishlist });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Product added to wishlist",
+        data: user.wishlist,
+      });
   } catch (error) {
     next(error);
   }
@@ -617,9 +850,14 @@ export const removeFromWishlist = async (req, res, next) => {
     user.wishlist.pull(productId);
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Product removed from wishlist', data: user.wishlist });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Product removed from wishlist",
+        data: user.wishlist,
+      });
   } catch (error) {
     next(error);
   }
 };
-

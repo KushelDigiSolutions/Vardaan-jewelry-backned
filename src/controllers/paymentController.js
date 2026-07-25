@@ -1,13 +1,13 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Order from '../models/Order.js';
+import Cart from '../models/Cart.js';
 import Transaction from '../models/Transaction.js';
-import Product from '../models/Product.js';
-import InventoryLog from '../models/InventoryLog.js';
 import Notification from '../models/Notification.js';
 import { sendEmail } from '../utils/email.js';
 import { getInvoiceEmailTemplate } from '../utils/emailTemplates.js';
 import { createShiprocketOrder } from '../utils/shiprocket.js';
+import { deductInventory } from '../utils/inventoryHelper.js';
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -112,7 +112,21 @@ export const verifyPayment = async (req, res, next) => {
       });
     }
 
+    // Mark stock deducted and save order
+    order.stockDeducted = true;
     await order.save();
+
+    // Clear the user's cart now that payment is confirmed
+    // (cart was kept intact during checkout to allow retry if payment was cancelled)
+    try {
+      const cart = await Cart.findOne({ user: order.user._id });
+      if (cart) {
+        cart.items = [];
+        await cart.save();
+      }
+    } catch (cartErr) {
+      console.error('Failed to clear cart after successful payment:', cartErr);
+    }
 
     // Create Audit ledger transaction
     await Transaction.create({
@@ -128,51 +142,11 @@ export const verifyPayment = async (req, res, next) => {
       }
     });
 
-    // Subtract Inventory stock levels
-    for (const item of order.items) {
-      const prod = await Product.findById(item.product);
-      if (prod) {
-        // Handle variant inventory if variantDetails is defined (full variant: karat+color+size)
-        if (item.variantDetails && prod.variants && prod.variants.length > 0) {
-          const vIndex = prod.variants.findIndex(v =>
-            v.size === item.variantDetails.size &&
-            v.karat === item.variantDetails.karat &&
-            v.metalColor === item.variantDetails.metalColor &&
-            (v.metalType || '') === (item.variantDetails.metalType || '') &&
-            (v.grossWeight || '') === (item.variantDetails.grossWeight || '') &&
-            (v.netWeight || '') === (item.variantDetails.netWeight || '')
-          );
-          if (vIndex > -1) {
-            prod.variants[vIndex].inventory = Math.max(0, prod.variants[vIndex].inventory - item.quantity);
-          }
-        }
-
-        // Handle size-only inventory decrement (sizes array)
-        if (!item.variantDetails && item.variant && prod.sizes && prod.sizes.length > 0) {
-          const sIndex = prod.sizes.findIndex(s => s.size === item.variant);
-          if (sIndex > -1 && prod.sizes[sIndex].inventory > 0) {
-            prod.sizes[sIndex].inventory = Math.max(0, prod.sizes[sIndex].inventory - item.quantity);
-          }
-        }
-
-        prod.inventory = Math.max(0, prod.inventory - item.quantity);
-        await prod.save();
-
-        await InventoryLog.create({
-          product: prod._id,
-          change: -item.quantity,
-          type: 'sale',
-          notes: `Stock subtracted on checkout Order #${order._id}`
-        });
-
-        // Trigger stock alert if under limits
-        if (prod.inventory <= 10) {
-          await Notification.create({
-            title: 'Low Stock Alert',
-            message: `Product "${prod.name}" (SKU: ${prod.sku}) has only ${prod.inventory} units remaining!`
-          });
-        }
-      }
+    // Deduct inventory using shared helper (handles variants[], sizes[], and root inventory)
+    try {
+      await deductInventory(order.items, order._id);
+    } catch (invErr) {
+      console.error('Inventory deduction failed after payment verification:', invErr);
     }
 
     // Customer Notification

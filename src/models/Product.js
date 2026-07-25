@@ -9,12 +9,27 @@ const productSchema = new mongoose.Schema({
   sku: { type: String, required: true, unique: true, index: true },
   inventory: { type: Number, required: true, default: 0, min: 0 },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
+  categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
   images: [{ type: String }],
   mainImage: { type: String, default: '' },
+  color: { type: String, default: '' },
   wearableMedia: [
     {
       url: { type: String, required: true },
       mediaType: { type: String, enum: ['image', 'video'], default: 'image' }
+    }
+  ],
+  colorImages: [
+    {
+      color: { type: String, required: true },
+      mainImage: { type: String, required: true },
+      wearableMedia: [
+        {
+          url: { type: String, required: true },
+          mediaType: { type: String, enum: ['image', 'video'], default: 'image' }
+        }
+      ],
+      inventory: { type: Number, default: 0, min: 0 }
     }
   ],
   isActive: { type: Boolean, default: true },

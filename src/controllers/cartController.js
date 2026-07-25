@@ -26,7 +26,12 @@ export const addToCart = async (req, res, next) => {
 
     // Determine variant-specific inventory limit
     let availableInventory = product.inventory;
-    if (variantDetails && product.variants && product.variants.length > 0) {
+    if (variantDetails && variantDetails.colorOption && product.colorImages && product.colorImages.length > 0) {
+      const colorMatch = product.colorImages.find(c => c.color === variantDetails.colorOption);
+      if (colorMatch && colorMatch.inventory !== undefined) {
+        availableInventory = colorMatch.inventory;
+      }
+    } else if (variantDetails && product.variants && product.variants.length > 0) {
       // Full variant (karat/metalColor/size) match
       const match = product.variants.find(v => 
         v.size === variantDetails.size &&
@@ -42,7 +47,7 @@ export const addToCart = async (req, res, next) => {
     } else if (variant && product.sizes && product.sizes.length > 0) {
       // Size-only variant — check per-size inventory if set
       const sizeMatch = product.sizes.find(s => s.size === variant);
-      if (sizeMatch && sizeMatch.inventory > 0) {
+      if (sizeMatch) {
         availableInventory = sizeMatch.inventory;
       }
     }
@@ -158,7 +163,12 @@ export const updateCartItem = async (req, res, next) => {
       let availableInventory = product.inventory;
       const vDetails = cart.items[itemIndex].variantDetails;
       const itemVariant = cart.items[itemIndex].variant;
-      if (vDetails && product.variants && product.variants.length > 0) {
+      if (vDetails && vDetails.colorOption && product.colorImages && product.colorImages.length > 0) {
+        const colorMatch = product.colorImages.find(c => c.color === vDetails.colorOption);
+        if (colorMatch && colorMatch.inventory !== undefined) {
+          availableInventory = colorMatch.inventory;
+        }
+      } else if (vDetails && product.variants && product.variants.length > 0) {
         const match = product.variants.find(v => 
           v.size === vDetails.size &&
           v.karat === vDetails.karat &&
@@ -173,7 +183,7 @@ export const updateCartItem = async (req, res, next) => {
       } else if (itemVariant && product.sizes && product.sizes.length > 0) {
         // Size-only variant — check per-size inventory if set
         const sizeMatch = product.sizes.find(s => s.size === itemVariant);
-        if (sizeMatch && sizeMatch.inventory > 0) {
+        if (sizeMatch) {
           availableInventory = sizeMatch.inventory;
         }
       }

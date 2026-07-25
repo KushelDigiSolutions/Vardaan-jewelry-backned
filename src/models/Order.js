@@ -14,7 +14,9 @@ const orderItemSchema = new mongoose.Schema({
     grossWeight: String,
     netWeight: String,
     price: Number,
-    salePrice: Number
+    salePrice: Number,
+    colorOption: String,
+    inventory: Number
   }
 }, { _id: false });
 
@@ -51,6 +53,9 @@ const orderSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   couponCode: { type: String, default: '' },
   discount: { type: Number, default: 0 },
+  codCharge: { type: Number, default: 0 },
+  onlineDiscount: { type: Number, default: 0 },
+  stockDeducted: { type: Boolean, default: false }, // true once inventory has been deducted for this order
   shiprocketOrderId: { type: String, default: '' },
   shiprocketShipmentId: { type: String, default: '' },
   tracking: {

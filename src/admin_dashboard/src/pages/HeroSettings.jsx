@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, ShieldCheck, Image as ImageIcon, RefreshCw } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
+import { useLoader } from '../context/LoaderContext.jsx';
 
 const HeroSettings = ({ token }) => {
+  const toast = useToast();
+  const { showLoader, hideLoader } = useLoader();
   const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +65,7 @@ const HeroSettings = ({ token }) => {
     const file = e.target.files[0];
     if (!file) return;
     setImageUploading(true);
+    showLoader('Uploading banner image...');
     const uploadData = new FormData();
     uploadData.append('file', file); // Use the generic 'file' field expected by /api/products/upload
 
@@ -75,24 +80,30 @@ const HeroSettings = ({ token }) => {
       const data = await res.json();
       if (data.success && data.files && data.files.length > 0) {
         setImage(data.files[0].url);
+        toast.success('Image uploaded successfully!');
       } else {
-        alert(data.message || 'Upload failed');
+        toast.error(data.message || 'Upload failed');
       }
     } catch (err) {
       console.error(err);
-      alert('Error uploading file');
+      toast.error('Error uploading file');
     } finally {
       setImageUploading(false);
+      hideLoader();
     }
   };
+
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!image) {
-      alert('Please upload or select an image for the hero banner');
+      toast.warning('Please upload or select an image for the hero banner');
       return;
     }
 
+    setSubmitting(true);
+    showLoader(editingSlide ? 'Saving changes...' : 'Creating slide...');
     try {
       const url = editingSlide ? `/api/hero-slides/${editingSlide._id}` : '/api/hero-slides';
       const method = editingSlide ? 'PUT' : 'POST';
@@ -118,20 +129,24 @@ const HeroSettings = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(editingSlide ? 'Hero slide updated successfully' : 'Hero slide created successfully');
+        toast.success(editingSlide ? 'Hero slide updated successfully' : 'Hero slide created successfully');
         handleResetForm();
         fetchSlides();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Operation failed');
       }
     } catch (err) {
       console.error(err);
-      alert('Error saving hero slide');
+      toast.error('Error saving hero slide');
+    } finally {
+      setSubmitting(false);
+      hideLoader();
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to remove this hero slide?')) return;
+    showLoader('Removing hero slide...');
     try {
       const res = await fetch(`/api/hero-slides/${id}`, {
         method: 'DELETE',
@@ -140,13 +155,16 @@ const HeroSettings = ({ token }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message || 'Hero slide removed successfully!');
         fetchSlides();
       } else {
-        alert(data.message);
+        toast.error(data.message || 'Failed to remove hero slide');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error removing hero slide');
+    } finally {
+      hideLoader();
     }
   };
 
@@ -371,8 +389,8 @@ const HeroSettings = ({ token }) => {
                 Cancel
               </button>
             )}
-            <button type="submit" className="btn btn-primary" style={{ flexGrow: 2, justifyContent: 'center' }}>
-              {editingSlide ? 'Save Changes' : 'Create Slide'}
+            <button type="submit" disabled={submitting || imageUploading} className="btn btn-primary" style={{ flexGrow: 2, justifyContent: 'center' }}>
+              {submitting ? (editingSlide ? 'Saving Changes...' : 'Creating Slide...') : (editingSlide ? 'Save Changes' : 'Create Slide')}
             </button>
           </div>
         </form>
