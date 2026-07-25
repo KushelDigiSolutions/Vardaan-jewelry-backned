@@ -24,6 +24,16 @@ export const formatProductsForExport = (products) => {
       .map(media => `${media.mediaType || 'image'}:${media.url}`)
       .join(' | ');
 
+    // colorImages formatting
+    const colorImagesStr = (p.colorImages || [])
+      .map(ci => {
+        const mediaStr = (ci.wearableMedia || [])
+          .map(media => `${media.mediaType || 'image'}:${media.url}`)
+          .join(',');
+        return `${ci.color || ''}::${ci.mainImage || ''}::${ci.inventory || 0}::${mediaStr}`;
+      })
+      .join(' | ');
+
     return {
       SKU: p.sku || '',
       Name: p.name || '',
@@ -37,6 +47,7 @@ export const formatProductsForExport = (products) => {
       Attributes: attrsStr,
       Sizes: sizesStr,
       WearableMedia: wearableMediaStr,
+      ColorImages: colorImagesStr,
       IsActive: p.isActive !== false ? 'TRUE' : 'FALSE'
     };
   });
@@ -151,6 +162,62 @@ export const parseImportRows = (rows) => {
       });
     }
 
+    // Color Images / Variants parsing
+    const colorImagesStr = String(
+      row.ColorImages || 
+      row.colorimages || 
+      row.colorImages || 
+      row.ColorVariants || 
+      row.colorvariants || 
+      row.colorVariants || 
+      ''
+    ).trim();
+    const colorImages = [];
+    if (colorImagesStr) {
+      const parts = colorImagesStr.split('|');
+      parts.forEach(part => {
+        const subparts = part.split('::');
+        if (subparts.length >= 1) {
+          const color = subparts[0].trim();
+          if (color) {
+            const mainImage = subparts[1] ? subparts[1].trim() : '';
+            const inventoryValStr = subparts[2] ? subparts[2].trim() : '0';
+            const colorInventory = Number(inventoryValStr) || 0;
+            
+            const mediaStr = subparts[3] ? subparts[3].trim() : '';
+            const colorWearableMedia = [];
+            if (mediaStr) {
+              const mediaParts = mediaStr.split(',');
+              mediaParts.forEach(m => {
+                const colonIndex = m.indexOf(':');
+                if (colonIndex !== -1) {
+                  const rawMediaType = m.substring(0, colonIndex).trim().toLowerCase();
+                  const url = m.substring(colonIndex + 1).trim();
+                  if (url) {
+                    const mediaType = (rawMediaType === 'video' || rawMediaType === 'image') ? rawMediaType : 'image';
+                    colorWearableMedia.push({ url, mediaType });
+                  }
+                } else {
+                  const url = m.trim();
+                  if (url) {
+                    const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(url);
+                    colorWearableMedia.push({ url, mediaType: isVideo ? 'video' : 'image' });
+                  }
+                }
+              });
+            }
+
+            colorImages.push({
+              color,
+              mainImage,
+              inventory: isNaN(colorInventory) ? 0 : colorInventory,
+              wearableMedia: colorWearableMedia
+            });
+          }
+        }
+      });
+    }
+
     return {
       sku,
       name,
@@ -164,6 +231,7 @@ export const parseImportRows = (rows) => {
       attributes,
       sizes,
       wearableMedia,
+      colorImages,
       isActive
     };
   });
@@ -219,6 +287,7 @@ export const downloadTemplate = (format = 'excel') => {
       Attributes: 'Metal Type:Gold | Purity:18Kt',
       Sizes: '12:45000:10 | 14::15',
       WearableMedia: 'image:https://images.unsplash.com/photo-1573408301185-9146fe634ad0 | video:https://www.w3schools.com/html/mov_bbb.mp4',
+      ColorImages: 'Red::https://images.unsplash.com/photo-1605100804763-247f67b3557e::10::image:https://images.unsplash.com/photo-1573408301185-9146fe634ad0 | Blue::https://images.unsplash.com/photo-1603561591411-07134e71a2a9::15::image:https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f',
       IsActive: 'TRUE'
     }
   ];
