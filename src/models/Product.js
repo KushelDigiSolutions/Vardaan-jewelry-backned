@@ -27,7 +27,8 @@ const productSchema = new mongoose.Schema({
           url: { type: String, required: true },
           mediaType: { type: String, enum: ['image', 'video'], default: 'image' }
         }
-      ]
+      ],
+      inventory: { type: Number, default: 0, min: 0 }
     }
   ],
   isActive: { type: Boolean, default: true },

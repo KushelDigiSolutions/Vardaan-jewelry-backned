@@ -24,6 +24,7 @@ const Inventory = ({ token }) => {
   // Adjustment Form States
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
   const [changeAmount, setChangeAmount] = useState("");
   const [adjustmentType, setAdjustmentType] = useState("stock_in");
   const [notes, setNotes] = useState("");
@@ -150,9 +151,10 @@ const Inventory = ({ token }) => {
     setStockPage(1);
   };
 
-  // Selected product object for size dropdown
+  // Selected product object for size/color dropdowns
   const selectedProduct = products.find((p) => p._id === selectedProductId);
   const hasSizes = selectedProduct?.sizes && selectedProduct.sizes.length > 0;
+  const hasColors = selectedProduct?.colorImages && selectedProduct.colorImages.length > 0;
 
   const handleAdjustSubmit = async (e) => {
     e.preventDefault();
@@ -168,6 +170,7 @@ const Inventory = ({ token }) => {
         notes,
       };
       if (selectedSize) body.size = selectedSize;
+      if (selectedColor) body.color = selectedColor;
 
       const res = await fetch("/api/inventory/adjust", {
         method: "POST",
@@ -184,6 +187,7 @@ const Inventory = ({ token }) => {
         setChangeAmount("");
         setNotes("");
         setSelectedSize("");
+        setSelectedColor("");
         await fetchProducts();
         fetchLogs(logsPage, logsSearch);
       } else {
@@ -410,6 +414,67 @@ const Inventory = ({ token }) => {
                           </td>
                         </tr>
                       )}
+
+                      {/* Per-color breakdown if colorImages exist */}
+                      {p.colorImages && p.colorImages.length > 0 && (
+                        <tr style={{ backgroundColor: "rgba(0,0,0,0.015)" }}>
+                          <td
+                            colSpan={5}
+                            style={{
+                              paddingLeft: "24px",
+                              paddingTop: "4px",
+                              paddingBottom: "8px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "6px",
+                              }}
+                            >
+                              {p.colorImages.map((c, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    fontSize: "11px",
+                                    background: "rgba(7,81,46,0.08)",
+                                    border: "1px solid rgba(7,81,46,0.15)",
+                                    borderRadius: "4px",
+                                    padding: "2px 8px",
+                                    color: "var(--text-dark)",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <span 
+                                    style={{ 
+                                      width: "10px", 
+                                      height: "10px", 
+                                      borderRadius: "50%", 
+                                      backgroundColor: c.color, 
+                                      border: "1px solid rgba(0,0,0,0.15)" 
+                                    }} 
+                                  />
+                                  Color {c.color}:{" "}
+                                  <strong
+                                    style={{
+                                      color:
+                                        (c.inventory || 0) > 0
+                                          ? "var(--success)"
+                                          : "var(--danger)",
+                                    }}
+                                  >
+                                    {c.inventory || 0}
+                                  </strong>{" "}
+                                  units
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                     </React.Fragment>
                   ))
                 )}
@@ -515,6 +580,36 @@ const Inventory = ({ token }) => {
                     <option key={idx} value={s.size}>
                       Size {s.size} (current:{" "}
                       {s.inventory > 0 ? s.inventory : "∞"} units)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Color selector — shown only when product has colors */}
+            {hasColors && (
+              <div className="form-group">
+                <label>
+                  Color Variant{" "}
+                  <span
+                    style={{
+                      color: "var(--text-muted)",
+                      fontWeight: "normal",
+                      fontSize: "11px",
+                    }}
+                  >
+                    (optional — leave blank for overall stock)
+                  </span>
+                </label>
+                <select
+                  className="form-control"
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                >
+                  <option value="">-- Overall Product Stock --</option>
+                  {selectedProduct.colorImages.map((c, idx) => (
+                    <option key={idx} value={c.color}>
+                      Color {c.color} (current: {c.inventory || 0} units)
                     </option>
                   ))}
                 </select>

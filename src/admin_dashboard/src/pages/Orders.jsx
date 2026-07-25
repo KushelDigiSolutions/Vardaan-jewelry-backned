@@ -433,22 +433,30 @@ const Orders = ({ token }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedOrder.items.map((item, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            {item.product?.images?.[0] ? (
-                              <img 
-                                src={item.product.images[0]} 
-                                alt={item.name} 
-                                style={{ 
-                                  width: '40px', 
-                                  height: '40px', 
-                                  objectFit: 'cover', 
-                                  borderRadius: '6px',
-                                  border: '1px solid var(--border-color)' 
-                                }} 
-                              />
-                            ) : (
+                      {selectedOrder.items.map((item, idx) => {
+                        let itemImage = item.product?.images?.[0] || '';
+                        if (item.variantDetails?.colorOption && item.product?.colorImages && item.product.colorImages.length > 0) {
+                          const colorMatch = item.product.colorImages.find(c => c.color === item.variantDetails.colorOption);
+                          if (colorMatch && colorMatch.mainImage) {
+                            itemImage = colorMatch.mainImage;
+                          }
+                        }
+                        return (
+                          <tr key={idx}>
+                            <td>
+                              {itemImage ? (
+                                <img 
+                                  src={itemImage} 
+                                  alt={item.name} 
+                                  style={{ 
+                                    width: '40px', 
+                                    height: '40px', 
+                                    objectFit: 'cover', 
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)' 
+                                  }} 
+                                />
+                              ) : (
                               <div 
                                 style={{ 
                                   width: '40px', 
@@ -485,7 +493,7 @@ const Orders = ({ token }) => {
                             ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                           </td>
                         </tr>
-                      ))}
+                      )})}
                       <tr style={{ borderTop: '2px solid var(--border-color)' }}>
                         <td colSpan={4}></td>
                         <td style={{ color: 'var(--text-muted)' }}>Items Subtotal:</td>

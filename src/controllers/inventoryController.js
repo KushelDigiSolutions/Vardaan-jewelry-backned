@@ -50,7 +50,7 @@ export const getInventoryLogs = async (req, res, next) => {
 // Adjust stock level (Admin only) — supports top-level and per-size adjustment
 export const adjustStock = async (req, res, next) => {
   try {
-    const { productId, change, notes, size } = req.body;
+    const { productId, change, notes, size, color } = req.body;
 
     const product = await Product.findById(productId);
     if (!product) {
@@ -64,7 +64,23 @@ export const adjustStock = async (req, res, next) => {
 
     let logNotes = notes || 'Manual dashboard inventory correction';
 
-    if (size && size.trim() !== '') {
+    if (color && color.trim() !== '') {
+      // Per-color adjustment
+      if (!product.colorImages || product.colorImages.length === 0) {
+        return res.status(400).json({ success: false, message: 'This product does not have color variants configured' });
+      }
+      const colorIndex = product.colorImages.findIndex(c => c.color === color);
+      if (colorIndex === -1) {
+        return res.status(400).json({ success: false, message: `Color "${color}" not found on this product` });
+      }
+      const currentColorInventory = product.colorImages[colorIndex].inventory || 0;
+      const newColorInventory = currentColorInventory + adjustAmount;
+      if (newColorInventory < 0) {
+        return res.status(400).json({ success: false, message: `Cannot adjust color "${color}". Result would be negative (${newColorInventory})` });
+      }
+      product.colorImages[colorIndex].inventory = newColorInventory;
+      logNotes = `${logNotes} [Color: ${color}]`;
+    } else if (size && size.trim() !== '') {
       // Per-size adjustment
       const sizeIndex = product.sizes.findIndex(s => s.size === size);
       if (sizeIndex === -1) {

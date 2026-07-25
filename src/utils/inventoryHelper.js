@@ -19,8 +19,17 @@ export const deductInventory = async (orderItems, orderId) => {
 
     let isVariantProcessed = false;
 
-    // 1. Full variant (karat + metalColor + size)
-    if (item.variantDetails && prod.variants && prod.variants.length > 0) {
+    // 1. Color variant (colorImages[] array)
+    if (item.variantDetails && item.variantDetails.colorOption && prod.colorImages && prod.colorImages.length > 0) {
+      const cIndex = prod.colorImages.findIndex(c => c.color === item.variantDetails.colorOption);
+      if (cIndex > -1) {
+        prod.colorImages[cIndex].inventory = Math.max(0, (prod.colorImages[cIndex].inventory || 0) - item.quantity);
+        isVariantProcessed = true;
+      }
+    }
+
+    // 2. Full variant (karat + metalColor + size)
+    if (!isVariantProcessed && item.variantDetails && prod.variants && prod.variants.length > 0) {
       const vIndex = prod.variants.findIndex(v =>
         v.size === item.variantDetails.size &&
         v.karat === item.variantDetails.karat &&
@@ -86,8 +95,17 @@ export const restoreInventory = async (orderItems, orderId) => {
 
     let isVariantProcessed = false;
 
-    // 1. Full variant (karat + metalColor + size)
-    if (item.variantDetails && prod.variants && prod.variants.length > 0) {
+    // 1. Color variant (colorImages[] array)
+    if (item.variantDetails && item.variantDetails.colorOption && prod.colorImages && prod.colorImages.length > 0) {
+      const cIndex = prod.colorImages.findIndex(c => c.color === item.variantDetails.colorOption);
+      if (cIndex > -1) {
+        prod.colorImages[cIndex].inventory = (prod.colorImages[cIndex].inventory || 0) + item.quantity;
+        isVariantProcessed = true;
+      }
+    }
+
+    // 2. Full variant (karat + metalColor + size)
+    if (!isVariantProcessed && item.variantDetails && prod.variants && prod.variants.length > 0) {
       const vIndex = prod.variants.findIndex(v =>
         v.size === item.variantDetails.size &&
         v.karat === item.variantDetails.karat &&

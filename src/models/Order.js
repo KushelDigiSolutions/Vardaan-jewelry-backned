@@ -14,7 +14,9 @@ const orderItemSchema = new mongoose.Schema({
     grossWeight: String,
     netWeight: String,
     price: Number,
-    salePrice: Number
+    salePrice: Number,
+    colorOption: String,
+    inventory: Number
   }
 }, { _id: false });
 

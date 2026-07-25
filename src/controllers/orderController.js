@@ -41,7 +41,13 @@ export const checkoutOrder = async (req, res, next) => {
       // Stock limit validation — check correct inventory bucket
       let availableInventory = prod.inventory;
 
-      if (item.variantDetails && prod.variants && prod.variants.length > 0) {
+      if (item.variantDetails && item.variantDetails.colorOption && prod.colorImages && prod.colorImages.length > 0) {
+        // Color variant match
+        const colorMatch = prod.colorImages.find(c => c.color === item.variantDetails.colorOption);
+        if (colorMatch && colorMatch.inventory !== undefined) {
+          availableInventory = colorMatch.inventory;
+        }
+      } else if (item.variantDetails && prod.variants && prod.variants.length > 0) {
         // Full variant (karat + metalColor + size)
         const match = prod.variants.find(v =>
           v.size === item.variantDetails.size &&
@@ -73,7 +79,15 @@ export const checkoutOrder = async (req, res, next) => {
         variant: item.variant
       };
 
-      if (item.variantDetails && (item.variantDetails.size || item.variantDetails.karat || item.variantDetails.metalColor || item.variantDetails.metalType || item.variantDetails.grossWeight || item.variantDetails.netWeight)) {
+      if (item.variantDetails && (
+        item.variantDetails.size || 
+        item.variantDetails.karat || 
+        item.variantDetails.metalColor || 
+        item.variantDetails.metalType || 
+        item.variantDetails.grossWeight || 
+        item.variantDetails.netWeight ||
+        item.variantDetails.colorOption
+      )) {
         orderItem.variantDetails = {
           size: item.variantDetails.size || undefined,
           karat: item.variantDetails.karat || undefined,
@@ -82,7 +96,8 @@ export const checkoutOrder = async (req, res, next) => {
           grossWeight: item.variantDetails.grossWeight || undefined,
           netWeight: item.variantDetails.netWeight || undefined,
           price: item.variantDetails.price || undefined,
-          salePrice: item.variantDetails.salePrice || undefined
+          salePrice: item.variantDetails.salePrice || undefined,
+          colorOption: item.variantDetails.colorOption || undefined
         };
       }
 
@@ -222,9 +237,9 @@ export const getOrders = async (req, res, next) => {
   try {
     let orders;
     if (req.user.role === 'admin') {
-      orders = await Order.find().populate('user', 'name email').populate('items.product', 'images sku').sort({ createdAt: -1 });
+      orders = await Order.find().populate('user', 'name email').populate('items.product', 'images sku colorImages').sort({ createdAt: -1 });
     } else {
-      orders = await Order.find({ user: req.user._id }).populate('items.product', 'images sku').sort({ createdAt: -1 });
+      orders = await Order.find({ user: req.user._id }).populate('items.product', 'images sku colorImages').sort({ createdAt: -1 });
     }
     res.status(200).json({ success: true, data: orders });
   } catch (error) {
@@ -237,7 +252,7 @@ export const getOrderById = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate('user', 'name email')
-      .populate('items.product', 'images sku');
+      .populate('items.product', 'images sku colorImages');
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });

@@ -118,8 +118,10 @@ const Products = ({ token }) => {
   const [tempColor, setTempColor] = useState("#000000");
   const [tempColorMainImage, setTempColorMainImage] = useState("");
   const [tempColorWearableMedia, setTempColorWearableMedia] = useState([]);
+  const [tempColorInventory, setTempColorInventory] = useState(0);
   const [colorMainImageUploading, setColorMainImageUploading] = useState(false);
   const [colorWearableMediaUploading, setColorWearableMediaUploading] = useState(false);
+  const [editingColorIdx, setEditingColorIdx] = useState(null);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -218,6 +220,7 @@ const Products = ({ token }) => {
     setTempColor("#000000");
     setTempColorMainImage("");
     setTempColorWearableMedia([]);
+    setTempColorInventory(0);
     setIsEditing(true);
   };
 
@@ -248,6 +251,7 @@ const Products = ({ token }) => {
     setTempColor("#000000");
     setTempColorMainImage("");
     setTempColorWearableMedia([]);
+    setTempColorInventory(0);
     setIsEditing(true);
   };
 
@@ -559,6 +563,16 @@ const Products = ({ token }) => {
     setTempColorWearableMedia((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const handleEditColorImage = (idx) => {
+    const ci = formData.colorImages[idx];
+    setTempColor(ci.color);
+    setTempColorMainImage(ci.mainImage);
+    setTempColorWearableMedia(ci.wearableMedia || []);
+    setTempColorInventory(ci.inventory || 0);
+    setEditingColorIdx(idx);
+    toast.info(`Editing color variant: ${ci.color}`);
+  };
+
   const handleAddColorImage = () => {
     if (!tempColor) {
       toast.warning("Please choose/enter a color first.");
@@ -573,22 +587,33 @@ const Products = ({ token }) => {
       return;
     }
 
-    setFormData((prev) => ({
-      ...prev,
-      colorImages: [
-        ...(prev.colorImages || []),
-        {
-          color: tempColor,
-          mainImage: tempColorMainImage,
-          wearableMedia: tempColorWearableMedia,
-        },
-      ],
-    }));
+    setFormData((prev) => {
+      const list = [...(prev.colorImages || [])];
+      const newItem = {
+        color: tempColor,
+        mainImage: tempColorMainImage,
+        wearableMedia: tempColorWearableMedia,
+        inventory: Number(tempColorInventory) || 0,
+      };
 
-    toast.success("Color variant added successfully!");
-    // Reset temp images, but keep color choice
+      if (editingColorIdx !== null) {
+        list[editingColorIdx] = newItem;
+      } else {
+        list.push(newItem);
+      }
+
+      return {
+        ...prev,
+        colorImages: list,
+      };
+    });
+
+    toast.success(editingColorIdx !== null ? "Color variant updated successfully!" : "Color variant added successfully!");
+    // Reset temp images, inventory & edit mode
+    setEditingColorIdx(null);
     setTempColorMainImage("");
     setTempColorWearableMedia([]);
+    setTempColorInventory(0);
   };
 
   const handleRemoveColorImage = (idx) => {
@@ -1573,24 +1598,63 @@ const Products = ({ token }) => {
                       </div>
                     )}
                   </div>
+
+                  {/* Color Inventory Input */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", borderLeft: "1px solid var(--border-color)", paddingLeft: "10px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: "600" }}>Stock:</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={tempColorInventory}
+                      onChange={(e) => setTempColorInventory(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      style={{ width: "65px", padding: "4px 8px", height: "36px" }}
+                    />
+                  </div>
  
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleAddColorImage}
-                    style={{
-                      height: "36px",
-                      padding: "0 16px",
-                      fontSize: "12px",
-                      backgroundColor: "var(--primary-color, #07512E)",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    Add Color
-                  </button>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleAddColorImage}
+                      style={{
+                        height: "36px",
+                        padding: "0 16px",
+                        fontSize: "12px",
+                        backgroundColor: editingColorIdx !== null ? "#3b82f6" : "var(--primary-color, #07512E)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {editingColorIdx !== null ? "Save Color Update" : "Add Color"}
+                    </button>
+                    {editingColorIdx !== null && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingColorIdx(null);
+                          setTempColorMainImage("");
+                          setTempColorWearableMedia([]);
+                          setTempColorInventory(0);
+                        }}
+                        style={{
+                          height: "36px",
+                          padding: "0 12px",
+                          fontSize: "12px",
+                          backgroundColor: "#ef4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
  
@@ -1654,6 +1718,25 @@ const Products = ({ token }) => {
                           ))}
                         </div>
                       </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Stock</span>
+                        <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-color)" }}>{ci.inventory || 0}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleEditColorImage(idx)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#3b82f6",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: "bold",
+                          marginRight: "8px"
+                        }}
+                      >
+                        Edit
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleRemoveColorImage(idx)}
