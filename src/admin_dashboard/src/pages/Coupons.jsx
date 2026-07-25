@@ -19,7 +19,7 @@ const Coupons = ({ token }) => {
 
   const handleSearchChange = (val) => {
     setSearchTerm(val);
-    setPage(1);
+    setPage(1);  
   };
 
   const handleStatusFilterChange = (val) => {
