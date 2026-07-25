@@ -8,7 +8,6 @@ on:
 
 jobs:
   deploy:
-    name: Deploy Backend
     runs-on: ubuntu-latest
 
     steps:
@@ -18,19 +17,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
-          cache: "npm"
+          node-version: 24
+          cache: npm
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Deploy to Production Server
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ vars.HOST }}
           username: ${{ vars.USERNAME }}
           port: ${{ vars.PORT }}
-          key: ${{ vars.SSH_KEY }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             set -e
 
@@ -38,30 +37,21 @@ jobs:
 
             cd /home/ubuntu/backend
 
-            echo "Fetching latest code..."
             git fetch origin
-            git reset --hard origin/master
 
-            echo "Installing dependencies..."
+            git checkout main
+
+            git reset --hard origin/main
+
             npm ci
 
-            echo "Restarting Backend..."
             pm2 reload backend --update-env
 
-            echo "Saving PM2..."
             pm2 save
 
-            echo "Backend Deployment Completed Successfully"
+            echo "===== Backend Deployment Finished ====="
 
       - name: Health Check
         run: |
           sleep 10
           curl -f https://admin.vardaanjewels.com/api
-
-      - name: Deployment Successful
-        if: success()
-        run: echo "Backend deployed successfully."
-
-      - name: Deployment Failed
-        if: failure()
-        run: echo "Backend deployment failed."
