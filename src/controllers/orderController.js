@@ -405,11 +405,30 @@ export const shipOrder = async (req, res, next) => {
           shipmentId = srDetails.shipmentId;
           order.shiprocketOrderId = srDetails.shiprocketOrderId;
           order.shiprocketShipmentId = srDetails.shipmentId;
+          await order.save(); // Save immediately in case the AWB step fails next
         }
 
-        const awbResult = await generateAWB(shipmentId);
-        awbNumber = awbResult.awb;
-        finalCarrier = awbResult.courier;
+        // Check if an AWB is already assigned in Shiprocket to prevent duplicate generation
+        try {
+          const trackInfoRes = await trackShipmentByShipmentId(shipmentId);
+          if (trackInfoRes?.tracking_data?.shipment_track?.length > 0) {
+            const trackInfo = trackInfoRes.tracking_data.shipment_track[0];
+            if (trackInfo.awb_code) {
+              awbNumber = trackInfo.awb_code;
+              finalCarrier = trackInfo.courier_name || 'Shiprocket Cargo';
+              console.log(`AWB already assigned for shipment ${shipmentId}: ${awbNumber}. Reusing it.`);
+            }
+          }
+        } catch (trackErr) {
+          console.log(`No active AWB found for shipment ${shipmentId} yet:`, trackErr.message);
+        }
+
+        // Generate AWB only if not already assigned
+        if (!awbNumber) {
+          const awbResult = await generateAWB(shipmentId);
+          awbNumber = awbResult.awb;
+          finalCarrier = awbResult.courier;
+        }
       } catch (shiprocketError) {
         console.error('Shiprocket API error:', shiprocketError);
         return res.status(400).json({
@@ -453,6 +472,79 @@ export const shipOrder = async (req, res, next) => {
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
+  }
+};
+
+// Helper to send status update emails & notifications
+const handleStatusChangeEvents = async (order, oldStatus, newStatus) => {
+  if (oldStatus === newStatus) return;
+
+  // Make sure user object is populated
+  if (!order.user || !order.user.email) {
+    try {
+      await order.populate('user', 'name email');
+    } catch (popErr) {
+      console.error('Failed to populate user for email notifications:', popErr);
+      return;
+    }
+  }
+
+  const carrier = order.tracking?.carrier || 'Shiprocket';
+  const awb = order.tracking?.awb || 'N/A';
+
+  if (newStatus === 'shipped') {
+    await Notification.create({
+      user: order.user._id,
+      title: 'Order Dispatched',
+      message: `Your order #${order._id} has been shipped via ${carrier}. Tracking: ${awb}`
+    });
+
+    try {
+      await sendEmail({
+        to: order.user.email,
+        subject: `Order #${order._id} Dispatched! - Vardaan Store`,
+        text: `Good news! Your order #${order._id} has been dispatched.\nCarrier: ${carrier}\nAWB / Tracking Number: ${awb}\n\nYou can track the package status from your dashboard.`,
+        html: getStatusUpdateEmailTemplate(order, 'Order Dispatched & Shipped', `Your package has been successfully picked up by ${carrier} and is in transit.`)
+      });
+    } catch (err) {
+      console.error("Failed to send dispatch email on auto-sync:", err);
+    }
+  } else if (newStatus === 'delivered') {
+    await Notification.create({
+      user: order.user._id,
+      title: `Order Status: DELIVERED`,
+      message: `Your order #${order._id} is now delivered.`
+    });
+
+    try {
+      const emailHtml = getStatusUpdateEmailTemplate(order, `Order Status: DELIVERED`, `Your package has been successfully delivered. Thank you for shopping with us!`);
+      await sendEmail({
+        to: order.user.email,
+        subject: `Order #${order._id} Status Update: DELIVERED`,
+        text: `Hello ${order.user.name},\n\nYour order #${order._id} status is now: delivered.\n\nThank you for shopping with us!`,
+        html: emailHtml
+      });
+    } catch (err) {
+      console.error("Email sending failed during order status update on auto-sync:", err);
+    }
+  } else if (newStatus === 'cancelled') {
+    await Notification.create({
+      user: order.user._id,
+      title: 'Order Cancelled',
+      message: `Your order #${order._id} has been cancelled.`
+    });
+
+    try {
+      const emailHtml = getStatusUpdateEmailTemplate(order, 'Order Cancelled', 'Your order has been cancelled/returned.');
+      await sendEmail({
+        to: order.user.email,
+        subject: `Order #${order._id} Cancelled - Vardaan Store`,
+        text: `Hello ${order.user.name},\n\nYour order #${order._id} has been successfully cancelled.\n\nThank you for shopping with us!`,
+        html: emailHtml
+      });
+    } catch (err) {
+      console.error('Failed to send cancellation email on auto-sync:', err);
+    }
   }
 };
 
@@ -524,26 +616,42 @@ export const syncOrderTracking = async (order) => {
 
       // Map status to internal orderStatus
       const latestSrStatus = currentStatus?.toLowerCase();
+      let calculatedStatus = order.orderStatus;
+      let calculatedPaymentStatus = order.paymentStatus;
+      let stockRestoreRequired = false;
+
       if (latestSrStatus) {
         if (latestSrStatus.includes('delivered')) {
-          order.orderStatus = 'delivered';
-          order.paymentStatus = 'paid';
+          calculatedStatus = 'delivered';
+          calculatedPaymentStatus = 'paid';
         } else if (latestSrStatus.includes('cancelled') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
-          order.orderStatus = 'cancelled';
+          calculatedStatus = 'cancelled';
           if (order.stockDeducted) {
-            try {
-              await restoreInventory(order.items, order._id);
-              order.stockDeducted = false;
-            } catch (invErr) {
-              console.error('Inventory restore failed during dynamic track sync:', invErr);
-            }
+            stockRestoreRequired = true;
           }
         } else if (latestSrStatus.includes('shipped') || latestSrStatus.includes('transit') || latestSrStatus.includes('out for delivery') || latestSrStatus.includes('picked up') || latestSrStatus.includes('awb assigned')) {
-          order.orderStatus = 'shipped';
+          calculatedStatus = 'shipped';
+        }
+      }
+
+      const oldStatus = order.orderStatus;
+      order.orderStatus = calculatedStatus;
+      order.paymentStatus = calculatedPaymentStatus;
+      if (stockRestoreRequired) {
+        try {
+          await restoreInventory(order.items, order._id);
+          order.stockDeducted = false;
+        } catch (invErr) {
+          console.error('Inventory restore failed during dynamic track sync:', invErr);
         }
       }
 
       await order.save();
+
+      // Trigger notifications and email
+      if (oldStatus !== calculatedStatus) {
+        await handleStatusChangeEvents(order, oldStatus, calculatedStatus);
+      }
     }
   } catch (err) {
     console.error(`Error in syncOrderTracking for order #${order._id}:`, err);
@@ -645,27 +753,44 @@ export const shiprocketWebhook = async (req, res, next) => {
 
     // Update internal orderStatus
     const latestSrStatus = (current_status || status || '').toLowerCase();
+    let calculatedStatus = order.orderStatus;
+    let calculatedPaymentStatus = order.paymentStatus;
+    let stockRestoreRequired = false;
+
     if (latestSrStatus) {
       if (latestSrStatus.includes('delivered')) {
-        order.orderStatus = 'delivered';
-        order.paymentStatus = 'paid';
+        calculatedStatus = 'delivered';
+        calculatedPaymentStatus = 'paid';
       } else if (latestSrStatus.includes('cancelled') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
-        order.orderStatus = 'cancelled';
+        calculatedStatus = 'cancelled';
         if (order.stockDeducted) {
-          try {
-            await restoreInventory(order.items, order._id);
-            order.stockDeducted = false;
-          } catch (invErr) {
-            console.error('Inventory restore failed during webhook cancel:', invErr);
-          }
+          stockRestoreRequired = true;
         }
       } else if (latestSrStatus.includes('shipped') || latestSrStatus.includes('transit') || latestSrStatus.includes('out for delivery') || latestSrStatus.includes('picked up') || latestSrStatus.includes('awb assigned')) {
-        order.orderStatus = 'shipped';
+        calculatedStatus = 'shipped';
+      }
+    }
+
+    const oldStatus = order.orderStatus;
+    order.orderStatus = calculatedStatus;
+    order.paymentStatus = calculatedPaymentStatus;
+    if (stockRestoreRequired) {
+      try {
+        await restoreInventory(order.items, order._id);
+        order.stockDeducted = false;
+      } catch (invErr) {
+        console.error('Inventory restore failed during webhook cancel:', invErr);
       }
     }
 
     await order.save();
     console.log(`Order #${order._id} updated via Shiprocket Webhook to: ${order.orderStatus}`);
+
+    // Trigger notifications and email
+    if (oldStatus !== calculatedStatus) {
+      await handleStatusChangeEvents(order, oldStatus, calculatedStatus);
+    }
+
     return res.status(200).json({ success: true, message: 'Webhook processed successfully' });
   } catch (error) {
     console.error('Error handling Shiprocket Webhook:', error);
