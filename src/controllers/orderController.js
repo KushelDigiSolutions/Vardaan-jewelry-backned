@@ -7,7 +7,7 @@ import Coupon from '../models/Coupon.js';
 import { incrementCouponUsage } from './couponController.js';
 import { sendEmail } from '../utils/email.js';
 import { getInvoiceEmailTemplate, getStatusUpdateEmailTemplate, getOrderPlacedEmailTemplate } from '../utils/emailTemplates.js';
-import { createShiprocketOrder, generateAWB } from '../utils/shiprocket.js';
+import { createShiprocketOrder, generateAWB, trackShipmentByAwb, trackShipmentByShipmentId } from '../utils/shiprocket.js';
 import { deductInventory, restoreInventory } from '../utils/inventoryHelper.js';
 
 // Initialize Checkout / Create Pending Order from Cart
@@ -456,20 +456,225 @@ export const shipOrder = async (req, res, next) => {
   }
 };
 
+// Helper to sync tracking details from Shiprocket
+export const syncOrderTracking = async (order) => {
+  if (!order.shiprocketShipmentId && !order.tracking.awb) {
+    return order;
+  }
+
+  try {
+    let trackInfo = null;
+    let activities = [];
+    let awbCode = order.tracking.awb;
+    let courierName = order.tracking.carrier;
+    let currentStatus = '';
+
+    if (awbCode) {
+      // Fetch by AWB
+      const response = await trackShipmentByAwb(awbCode);
+      if (response?.tracking_data?.shipment_track?.length > 0) {
+        trackInfo = response.tracking_data.shipment_track[0];
+        currentStatus = trackInfo.current_status;
+        if (trackInfo.courier_name) {
+          courierName = trackInfo.courier_name;
+        }
+        if (Array.isArray(trackInfo.shipment_track_activities)) {
+          activities = trackInfo.shipment_track_activities.map(act => ({
+            status: act['sr-status-label']?.toLowerCase() || act.status?.toLowerCase() || 'pending',
+            message: `${act.activity}${act.location ? ' - ' + act.location : ''}`,
+            timestamp: new Date(act.date)
+          }));
+        }
+      }
+    } else if (order.shiprocketShipmentId) {
+      // Fetch by Shipment ID
+      const response = await trackShipmentByShipmentId(order.shiprocketShipmentId);
+      if (response?.tracking_data?.shipment_track?.length > 0) {
+        trackInfo = response.tracking_data.shipment_track[0];
+        awbCode = trackInfo.awb_code || awbCode;
+        currentStatus = trackInfo.current_status || trackInfo.shipment_status_label || currentStatus;
+        if (trackInfo.courier_name) {
+          courierName = trackInfo.courier_name;
+        }
+        if (Array.isArray(trackInfo.scans)) {
+          activities = trackInfo.scans.map(scan => ({
+            status: scan.activity?.toLowerCase() || 'pending',
+            message: `${scan.activity}${scan.location ? ' - ' + scan.location : ''}`,
+            timestamp: new Date(scan.date)
+          }));
+        }
+      }
+    }
+
+    if (trackInfo) {
+      // Save AWB and Courier if found
+      if (awbCode && order.tracking.awb !== awbCode) {
+        order.tracking.awb = awbCode;
+      }
+      if (courierName && order.tracking.carrier !== courierName) {
+        order.tracking.carrier = courierName;
+      }
+
+      // Update status history
+      if (activities.length > 0) {
+        // Sort ascending by timestamp
+        activities.sort((a, b) => a.timestamp - b.timestamp);
+        order.tracking.statusHistory = activities;
+      }
+
+      // Map status to internal orderStatus
+      const latestSrStatus = currentStatus?.toLowerCase();
+      if (latestSrStatus) {
+        if (latestSrStatus.includes('delivered')) {
+          order.orderStatus = 'delivered';
+          order.paymentStatus = 'paid';
+        } else if (latestSrStatus.includes('cancelled') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
+          order.orderStatus = 'cancelled';
+          if (order.stockDeducted) {
+            try {
+              await restoreInventory(order.items, order._id);
+              order.stockDeducted = false;
+            } catch (invErr) {
+              console.error('Inventory restore failed during dynamic track sync:', invErr);
+            }
+          }
+        } else if (latestSrStatus.includes('shipped') || latestSrStatus.includes('transit') || latestSrStatus.includes('out for delivery') || latestSrStatus.includes('picked up') || latestSrStatus.includes('awb assigned')) {
+          order.orderStatus = 'shipped';
+        }
+      }
+
+      await order.save();
+    }
+  } catch (err) {
+    console.error(`Error in syncOrderTracking for order #${order._id}:`, err);
+  }
+  return order;
+};
+
 // Fetch Tracking updates
 export const trackOrder = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id);
+    let order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+
+    // Sync tracking dynamically if it is a Shiprocket shipment or order
+    if (order.shiprocketShipmentId || (order.tracking && order.tracking.carrier && order.tracking.carrier.toLowerCase().includes('shiprocket'))) {
+      order = await syncOrderTracking(order);
+    }
+
     res.status(200).json({ success: true, data: order.tracking });
   } catch (error) {
     next(error);
   }
 };
 
+// Handle Shiprocket webhook tracking updates
+export const shiprocketWebhook = async (req, res, next) => {
+  try {
+    const payload = req.body;
+    console.log('Received Shiprocket Webhook:', payload);
+
+    // Optional validation with a security token (x-api-key or custom header)
+    const webhookToken = process.env.SHIPROCKET_WEBHOOK_TOKEN;
+    if (webhookToken) {
+      const receivedToken = req.headers['x-api-key'] || req.headers['authorization'];
+      if (!receivedToken || (receivedToken !== webhookToken && receivedToken !== `Bearer ${webhookToken}`)) {
+        console.warn('Unauthorized Shiprocket Webhook attempt.');
+        return res.status(401).json({ success: false, message: 'Unauthorized webhook request' });
+      }
+    }
+
+    const { awb, shipment_id, order_id, status, current_status, courier_name, tracking_data } = payload;
+
+    // Find order
+    let order = null;
+    if (shipment_id) {
+      order = await Order.findOne({ shiprocketShipmentId: shipment_id.toString() });
+    }
+    if (!order && order_id) {
+      const mongoose = (await import('mongoose')).default;
+      if (mongoose.Types.ObjectId.isValid(order_id.toString())) {
+        order = await Order.findById(order_id.toString());
+      }
+    }
+    if (!order && awb) {
+      order = await Order.findOne({ 'tracking.awb': awb.toString() });
+    }
+
+    if (!order) {
+      console.warn(`Shiprocket Webhook: Order not found for shipment_id: ${shipment_id}, order_id: ${order_id}, awb: ${awb}`);
+      return res.status(200).json({ success: true, message: 'Webhook received but order not found' });
+    }
+
+    // Sync carrier details
+    if (courier_name && order.tracking.carrier !== courier_name) {
+      order.tracking.carrier = courier_name;
+    }
+    if (awb && order.tracking.awb !== awb) {
+      order.tracking.awb = awb;
+    }
+
+    // Update status history
+    if (tracking_data && Array.isArray(tracking_data.activities)) {
+      const sortedActivities = [...tracking_data.activities].sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
+
+      const statusHistory = sortedActivities.map(act => ({
+        status: act.status?.toLowerCase() || 'pending',
+        message: `${act.activity}${act.location ? ' - ' + act.location : ''}`,
+        timestamp: new Date(act.date)
+      }));
+
+      if (statusHistory.length > 0) {
+        order.tracking.statusHistory = statusHistory;
+      }
+    } else if (current_status || status) {
+      const newStatus = (current_status || status).toLowerCase();
+      const lastHistory = order.tracking.statusHistory[order.tracking.statusHistory.length - 1];
+      if (!lastHistory || lastHistory.status !== newStatus) {
+        order.tracking.statusHistory.push({
+          status: newStatus,
+          message: `Shipment status updated to: ${current_status || status}`,
+          timestamp: new Date()
+        });
+      }
+    }
+
+    // Update internal orderStatus
+    const latestSrStatus = (current_status || status || '').toLowerCase();
+    if (latestSrStatus) {
+      if (latestSrStatus.includes('delivered')) {
+        order.orderStatus = 'delivered';
+        order.paymentStatus = 'paid';
+      } else if (latestSrStatus.includes('cancelled') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
+        order.orderStatus = 'cancelled';
+        if (order.stockDeducted) {
+          try {
+            await restoreInventory(order.items, order._id);
+            order.stockDeducted = false;
+          } catch (invErr) {
+            console.error('Inventory restore failed during webhook cancel:', invErr);
+          }
+        }
+      } else if (latestSrStatus.includes('shipped') || latestSrStatus.includes('transit') || latestSrStatus.includes('out for delivery') || latestSrStatus.includes('picked up') || latestSrStatus.includes('awb assigned')) {
+        order.orderStatus = 'shipped';
+      }
+    }
+
+    await order.save();
+    console.log(`Order #${order._id} updated via Shiprocket Webhook to: ${order.orderStatus}`);
+    return res.status(200).json({ success: true, message: 'Webhook processed successfully' });
+  } catch (error) {
+    console.error('Error handling Shiprocket Webhook:', error);
+    return res.status(200).json({ success: false, error: error.message });
+  }
+};
+
 // Cancel Order (User)
+
 export const cancelOrder = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate('user', 'name email');

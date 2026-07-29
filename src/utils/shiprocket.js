@@ -199,3 +199,46 @@ export const generateAWB = async (shipmentId) => {
     courier: result.courier_name || 'Shiprocket Cargo',
   };
 };
+
+/**
+ * Tracks a shipment using the AWB code
+ * @param {string} awbCode Air Waybill number
+ * @returns {Promise<Object>} Shiprocket tracking API response
+ */
+export const trackShipmentByAwb = async (awbCode) => {
+  const token = await authenticateShiprocket();
+  const response = await fetch(`${BASE_URL}/courier/track/awb/${awbCode}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to track shipment by AWB.');
+  }
+  return data;
+};
+
+/**
+ * Tracks a shipment using the Shipment ID
+ * @param {string|number} shipmentId Shiprocket Shipment ID
+ * @returns {Promise<Object>} Shiprocket tracking API response
+ */
+export const trackShipmentByShipmentId = async (shipmentId) => {
+  const token = await authenticateShiprocket();
+  const response = await fetch(`${BASE_URL}/courier/track/shipment/${shipmentId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to track shipment by Shipment ID.');
+  }
+  return data;
+};
+
