@@ -23,7 +23,7 @@ const Orders = ({ token }) => {
   // Selected Order Drawer
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [shippingCarrier, setShippingCarrier] = useState('Delhivery');
+  const [shippingCarrier, setShippingCarrier] = useState('Shiprocket');
   const [actionLoading, setActionLoading] = useState(false);
   const [tempStatus, setTempStatus] = useState('');
   const [tempPaymentStatus, setTempPaymentStatus] = useState('');
