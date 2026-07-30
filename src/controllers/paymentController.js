@@ -160,7 +160,7 @@ export const verifyPayment = async (req, res, next) => {
     try {
       await sendEmail({
         to: order.user.email,
-        subject: `Invoice for Order #${order._id} - Vardaan Store`,
+        subject: `Invoice for Order #${order._id} - Vardaan Jewel`,
         text: `Dear ${order.user.name},\n\nWe have received payment for your order #${order._id}.\nTotal amount: ₹${order.totalAmount}\n\nYour items will be shipped shortly!`,
         html: getInvoiceEmailTemplate(order)
       });
