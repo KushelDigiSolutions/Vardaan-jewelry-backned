@@ -624,7 +624,7 @@ export const syncOrderTracking = async (order) => {
         if (latestSrStatus.includes('delivered')) {
           calculatedStatus = 'delivered';
           calculatedPaymentStatus = 'paid';
-        } else if (latestSrStatus.includes('cancelled') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
+        } else if (latestSrStatus.includes('cancel') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
           calculatedStatus = 'cancelled';
           if (order.stockDeducted) {
             stockRestoreRequired = true;
@@ -702,17 +702,32 @@ export const shiprocketWebhook = async (req, res, next) => {
       order = await Order.findOne({ shiprocketShipmentId: shipment_id.toString() });
     }
     if (!order && order_id) {
-      const mongoose = (await import('mongoose')).default;
-      if (mongoose.Types.ObjectId.isValid(order_id.toString())) {
-        order = await Order.findById(order_id.toString());
+      // 1. Try to find by Shiprocket's order_id in our shiprocketOrderId field
+      order = await Order.findOne({ shiprocketOrderId: order_id.toString() });
+
+      // 2. If not found, and order_id is a valid MongoDB ObjectId, search by our database order id
+      if (!order) {
+        const mongoose = (await import('mongoose')).default;
+        if (mongoose.Types.ObjectId.isValid(order_id.toString())) {
+          order = await Order.findById(order_id.toString());
+        }
       }
     }
+
+    // 3. Fallback: Search by channel_order_id (sometimes Shiprocket webhooks send this)
+    if (!order && payload.channel_order_id) {
+      const mongoose = (await import('mongoose')).default;
+      if (mongoose.Types.ObjectId.isValid(payload.channel_order_id.toString())) {
+        order = await Order.findById(payload.channel_order_id.toString());
+      }
+    }
+
     if (!order && awb) {
       order = await Order.findOne({ 'tracking.awb': awb.toString() });
     }
 
     if (!order) {
-      console.warn(`Shiprocket Webhook: Order not found for shipment_id: ${shipment_id}, order_id: ${order_id}, awb: ${awb}`);
+      console.warn(`Shiprocket Webhook: Order not found for shipment_id: ${shipment_id}, order_id: ${order_id}, awb: ${awb}, channel_order_id: ${payload.channel_order_id}`);
       return res.status(200).json({ success: true, message: 'Webhook received but order not found' });
     }
 
@@ -761,7 +776,7 @@ export const shiprocketWebhook = async (req, res, next) => {
       if (latestSrStatus.includes('delivered')) {
         calculatedStatus = 'delivered';
         calculatedPaymentStatus = 'paid';
-      } else if (latestSrStatus.includes('cancelled') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
+      } else if (latestSrStatus.includes('cancel') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
         calculatedStatus = 'cancelled';
         if (order.stockDeducted) {
           stockRestoreRequired = true;
