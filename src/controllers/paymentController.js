@@ -6,8 +6,9 @@ import Transaction from '../models/Transaction.js';
 import Notification from '../models/Notification.js';
 import { sendEmail } from '../utils/email.js';
 import { getInvoiceEmailTemplate } from '../utils/emailTemplates.js';
-import { createShiprocketOrder } from '../utils/shiprocket.js';
+import { createDelhiveryOrder } from '../utils/delhivery.js';
 import { deductInventory } from '../utils/inventoryHelper.js';
+
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -92,23 +93,23 @@ export const verifyPayment = async (req, res, next) => {
       message: `Payment successful via ${order.paymentMethod}. Transaction ID: ${razorpay_payment_id}`
     });
 
-    // Auto-register Online orders in Shiprocket immediately on payment success
+    // Auto-register Online orders in Delhivery immediately on payment success
     try {
       const populatedOrder = await Order.findById(order._id)
         .populate('user', 'name email mobile')
         .populate('items.product', 'sku');
-      const srDetails = await createShiprocketOrder(populatedOrder, order.user);
-      order.shiprocketOrderId = srDetails.shiprocketOrderId;
-      order.shiprocketShipmentId = srDetails.shipmentId;
+      const delhiveryDetails = await createDelhiveryOrder(populatedOrder, order.user);
+      order.tracking.awb = delhiveryDetails.waybill;
+      order.tracking.carrier = 'Delhivery';
       order.tracking.statusHistory.push({
         status: 'confirmed',
-        message: `Order registered in Shiprocket. Shipment ID: ${srDetails.shipmentId}`
+        message: `Order registered in Delhivery. Waybill (AWB): ${delhiveryDetails.waybill}`
       });
-    } catch (srErr) {
-      console.error('Auto Shiprocket creation failed for online order:', srErr);
+    } catch (delhiveryErr) {
+      console.error('Auto Delhivery creation failed for online order:', delhiveryErr);
       order.tracking.statusHistory.push({
         status: 'confirmed',
-        message: `Payment verified. Shiprocket order registration failed: ${srErr.message || srErr}`
+        message: `Payment verified. Delhivery order registration failed: ${delhiveryErr.message || delhiveryErr}`
       });
     }
 

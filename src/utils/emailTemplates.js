@@ -1,9 +1,121 @@
+const isUttarPradesh = (state) => {
+  if (!state) return false;
+  const clean = state.trim().toLowerCase().replace(/[^a-z]/g, '');
+  return clean === 'uttarpradesh' || clean === 'up';
+};
+
+const getBreakdownHtml = (order) => {
+  const isUP = isUttarPradesh(order.shippingAddress?.state);
+  const itemsSubtotal = order.items ? order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) : 0;
+  
+  const taxableValue = order.taxableValue !== undefined && order.taxableValue !== null 
+    ? order.taxableValue 
+    : Number((itemsSubtotal * 0.97).toFixed(2));
+
+  const discount = order.discount || 0;
+  const onlineDiscount = order.onlineDiscount || 0;
+  const codCharge = order.codCharge || 0;
+  const shippingCost = order.shippingCost || 0;
+  
+  // Calculate subtotal for GST: Taxable Value - Coupon - Online Discount + Handling + Shipping
+  const subtotalForGst = Number((taxableValue - discount - onlineDiscount + codCharge + shippingCost).toFixed(2));
+  
+  const gstAmount = order.gstAmount !== undefined && order.gstAmount !== null 
+    ? order.gstAmount 
+    : Number((itemsSubtotal - taxableValue).toFixed(2));
+
+  let rows = `
+    <tr class="total-row">
+      <td colspan="3" style="text-align: right; font-weight: 500;">Product Price (Incl. GST):</td>
+      <td style="text-align: right; font-weight: bold; color: #303030;">₹${itemsSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    </tr>
+    <tr class="total-row">
+      <td colspan="3" style="text-align: right; font-weight: 500;">Taxable Value:</td>
+      <td style="text-align: right; font-weight: bold; color: #303030;">₹${taxableValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    </tr>
+  `;
+
+  if (discount > 0) {
+    rows += `
+      <tr class="total-row">
+        <td colspan="3" style="text-align: right; font-weight: 500; color: #07512E;">Coupon Discount:</td>
+        <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${discount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  }
+
+  if (onlineDiscount > 0) {
+    rows += `
+      <tr class="total-row">
+        <td colspan="3" style="text-align: right; font-weight: 500; color: #07512E;">Online Payment Discount (5%):</td>
+        <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${onlineDiscount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  }
+
+  if (codCharge > 0) {
+    rows += `
+      <tr class="total-row">
+        <td colspan="3" style="text-align: right; font-weight: 500; color: #dc2626;">Handling Charge:</td>
+        <td style="text-align: right; font-weight: bold; color: #dc2626;">+₹${codCharge.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  }
+
+  rows += `
+    <tr class="total-row">
+      <td colspan="3" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
+      <td style="text-align: right; font-weight: bold; color: #303030;">₹${shippingCost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    </tr>
+    <tr class="total-row" style="border-top: 1px solid #F0ECE3; border-bottom: 1px solid #F0ECE3;">
+      <td colspan="3" style="text-align: right; font-weight: 600; color: #303030;">Subtotal (before GST):</td>
+      <td style="text-align: right; font-weight: bold; color: #303030;">₹${subtotalForGst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    </tr>
+  `;
+
+  if (isUP) {
+    const cgst = Number((gstAmount / 2).toFixed(2));
+    const sgst = Number((gstAmount - cgst).toFixed(2));
+    rows += `
+      <tr class="total-row">
+        <td colspan="3" style="text-align: right; font-weight: 500;">CGST (1.5%):</td>
+        <td style="text-align: right; font-weight: bold; color: #303030;">₹${cgst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="3" style="text-align: right; font-weight: 500;">SGST (1.5%):</td>
+        <td style="text-align: right; font-weight: bold; color: #303030;">₹${sgst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  } else {
+    rows += `
+      <tr class="total-row">
+        <td colspan="3" style="text-align: right; font-weight: 500;">IGST (3%):</td>
+        <td style="text-align: right; font-weight: bold; color: #303030;">₹${gstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  }
+
+  return rows;
+};
+
 export const getInvoiceEmailTemplate = (order) => {
+  const isUP = isUttarPradesh(order.shippingAddress?.state);
+  const isPaid = order.paymentStatus === 'paid';
+  const paymentStatusText = order.paymentStatus ? order.paymentStatus.toUpperCase() : 'PENDING';
+  const paymentStatusColor = isPaid ? '#07512E' : '#b7791f';
+  
+  const welcomeMessage = isPaid
+    ? 'We have successfully received the payment for your order. Your transaction is complete and the order is confirmed for fulfillment. Here is your receipt summary:'
+    : 'Thank you for your order! Your order has been confirmed. Below are your invoice and order details:';
+
+  // Calculations are handled in getBreakdownHtml
+
   const itemsHtml = order.items
     .map(
       (item) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">7117</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
     </tr>
@@ -45,7 +157,7 @@ export const getInvoiceEmailTemplate = (order) => {
         </div>
         <div class="content">
           <p class="welcome-text">Dear ${order.user?.name || "Customer"},</p>
-          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin: 0;">We have successfully received the payment for your order. Your transaction is complete and the order is confirmed for fulfillment. Here is your receipt summary:</p>
+          <p style="color: #555555; font-size: 15px; line-height: 1.7; margin: 0;">${welcomeMessage}</p>
           
           <table style="width: 100%; background: #F8F5EE; border: 1px solid #E5DCC5; border-radius: 6px; padding: 15px; margin: 20px 0; font-size: 14px; border-spacing: 0 6px;">
             <tr><td style="color: #8C7547;"><strong>Seller:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">Vardaan Jewels</td></tr>
@@ -53,45 +165,23 @@ export const getInvoiceEmailTemplate = (order) => {
             <tr><td style="color: #8C7547;"><strong>Order Number:</strong></td><td style="text-align: right; font-weight: bold; color: #303030;">#${order._id}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Payment Method:</strong></td><td style="text-align: right; color: #303030; text-transform: uppercase;">${order.paymentMethod}</td></tr>
             <tr><td style="color: #8C7547;"><strong>Transaction Date:</strong></td><td style="text-align: right; color: #303030;">${new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td></tr>
-            <tr><td style="color: #8C7547;"><strong>Payment Status:</strong></td><td style="text-align: right; font-weight: bold; color: #07512E; text-transform: uppercase;">PAID</td></tr>
+            <tr><td style="color: #8C7547;"><strong>Payment Status:</strong></td><td style="text-align: right; font-weight: bold; color: ${paymentStatusColor}; text-transform: uppercase;">${paymentStatusText}</td></tr>
           </table>
 
           <table class="invoice-table">
             <thead>
               <tr>
                 <th style="text-align: left;">Jewelry Item</th>
+                <th style="text-align: center; width: 70px;">HSN</th>
                 <th style="text-align: center; width: 60px;">Qty</th>
                 <th style="text-align: right; width: 100px;">Price</th>
               </tr>
             </thead>
             <tbody>
               ${itemsHtml}
-              ${
-                order.codCharge > 0
-                  ? `
+              ${getBreakdownHtml(order)}
               <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: 500; color: #dc2626;">Handling Charge:</td>
-                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString("en-IN")}</td>
-              </tr>
-              `
-                  : ""
-              }
-              ${
-                order.onlineDiscount > 0
-                  ? `
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: 500; color: #07512E;">Online Payment Discount (5%):</td>
-                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString("en-IN")}</td>
-              </tr>
-              `
-                  : ""
-              }
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
-                <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString("en-IN")}</td>
-              </tr>
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Paid <span style="font-size: 11px; font-weight: normal; color: #555555; display: block;">(Inclusive of GST)</span>:</td>
+                <td colspan="3" style="text-align: right; font-weight: bold;" class="grand-total">Total Paid <span style="font-size: 11px; font-weight: normal; color: #555555; display: block;">(Inclusive of GST)</span>:</td>
                 <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString("en-IN")}</td>
               </tr>
             </tbody>
@@ -165,7 +255,7 @@ export const getStatusUpdateEmailTemplate = (order, title, message) => {
             <p style="margin: 4px 0;"><strong>Shipping Carrier:</strong> ${order.tracking.carrier}</p>
             <p style="margin: 4px 0;"><strong>Tracking Number (AWB):</strong> <span style="font-family: monospace; font-weight: bold; color: #07512E;">${order.tracking.awb}</span></p>
             <div style="margin-top: 15px;">
-              <a href="https://shiprocket.co/tracking/${order.tracking.awb}" target="_blank" style="background: #07512E; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; display: inline-block;">Track Your Package</a>
+              <a href="${order.tracking.carrier?.toLowerCase().includes('delhivery') ? 'https://www.delhivery.com/track/package/' + order.tracking.awb : 'https://shiprocket.co/tracking/' + order.tracking.awb}" target="_blank" style="background: #07512E; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; display: inline-block;">Track Your Package</a>
             </div>
           </div>
           `
@@ -303,11 +393,16 @@ export const getForgotPasswordEmailTemplate = (name, otp) => {
 };
 
 export const getOrderPlacedEmailTemplate = (order) => {
+  const isUP = isUttarPradesh(order.shippingAddress?.state);
+
+  // Calculations are handled in getBreakdownHtml
+
   const itemsHtml = order.items
     .map(
       (item) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030;">${item.name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">7117</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #555555; text-align: center;">${item.quantity}</td>
       <td style="padding: 12px; border-bottom: 1px solid #FAF9F6; font-size: 14px; color: #303030; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
     </tr>
@@ -370,38 +465,16 @@ export const getOrderPlacedEmailTemplate = (order) => {
             <thead>
               <tr>
                 <th style="text-align: left;">Jewelry Item</th>
+                <th style="text-align: center; width: 70px;">HSN</th>
                 <th style="text-align: center; width: 60px;">Qty</th>
                 <th style="text-align: right; width: 100px;">Price</th>
               </tr>
             </thead>
             <tbody>
               ${itemsHtml}
-              ${
-                order.codCharge > 0
-                  ? `
+              ${getBreakdownHtml(order)}
               <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: 500; color: #dc2626;">Handling Charge:</td>
-                <td style="text-align: right; font-weight: bold; color: #dc2626;">₹${order.codCharge.toLocaleString("en-IN")}</td>
-              </tr>
-              `
-                  : ""
-              }
-              ${
-                order.onlineDiscount > 0
-                  ? `
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: 500; color: #07512E;">Online Payment Discount (5%):</td>
-                <td style="text-align: right; font-weight: bold; color: #07512E;">-₹${order.onlineDiscount.toLocaleString("en-IN")}</td>
-              </tr>
-              `
-                  : ""
-              }
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: 500;">Shipping Cost:</td>
-                <td style="text-align: right; font-weight: bold; color: #303030;">₹${order.shippingCost.toLocaleString("en-IN")}</td>
-              </tr>
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: bold;" class="grand-total">Total Amount <span style="font-size: 11px; font-weight: normal; color: #555555; display: block;">(Inclusive of GST)</span>:</td>
+                <td colspan="3" style="text-align: right; font-weight: bold;" class="grand-total">Total Amount <span style="font-size: 11px; font-weight: normal; color: #555555; display: block;">(Inclusive of GST)</span>:</td>
                 <td style="text-align: right; font-weight: bold;" class="grand-total">₹${order.totalAmount.toLocaleString("en-IN")}</td>
               </tr>
             </tbody>

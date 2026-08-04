@@ -375,9 +375,29 @@ const Orders = ({ token }) => {
 
       {/* Selected Order Detailed Drawer Modal */}
       {showDetailModal && selectedOrder && (() => {
+        const isUttarPradesh = (state) => {
+          if (!state) return false;
+          const clean = state.trim().toLowerCase().replace(/[^a-z]/g, "");
+          return clean === "uttarpradesh" || clean === "up";
+        };
+
         const itemsSubtotal = selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const shippingCost = selectedOrder.shippingCost || 0;
+        const discount = selectedOrder.discount || 0;
         const codCharge = selectedOrder.codCharge !== undefined && selectedOrder.codCharge !== null ? selectedOrder.codCharge : (selectedOrder.paymentMethod === 'COD' ? 100 : 0);
-        const onlineDiscount = selectedOrder.onlineDiscount !== undefined && selectedOrder.onlineDiscount !== null ? selectedOrder.onlineDiscount : (selectedOrder.paymentMethod !== 'COD' ? Math.round((itemsSubtotal - selectedOrder.discount) * 0.05) : 0);
+        const onlineDiscount = selectedOrder.onlineDiscount !== undefined && selectedOrder.onlineDiscount !== null ? selectedOrder.onlineDiscount : (selectedOrder.paymentMethod !== 'COD' ? Number(((itemsSubtotal - selectedOrder.discount) * 0.05).toFixed(2)) : 0);
+
+        const taxableValue = selectedOrder.taxableValue !== undefined && selectedOrder.taxableValue !== null
+          ? selectedOrder.taxableValue
+          : Number((itemsSubtotal * 0.97).toFixed(2));
+
+        const subtotalForGst = Number((taxableValue - discount - onlineDiscount + codCharge + shippingCost).toFixed(2));
+
+        const gstAmount = selectedOrder.gstAmount !== undefined && selectedOrder.gstAmount !== null
+          ? selectedOrder.gstAmount
+          : Number((itemsSubtotal - taxableValue).toFixed(2));
+
+        const isUP = selectedOrder.shippingAddress ? isUttarPradesh(selectedOrder.shippingAddress.state) : false;
 
         return (
           <div className="modal-backdrop">
@@ -496,19 +516,26 @@ const Orders = ({ token }) => {
                       )})}
                       <tr style={{ borderTop: '2px solid var(--border-color)' }}>
                         <td colSpan={4}></td>
-                        <td style={{ color: 'var(--text-muted)' }}>Items Subtotal:</td>
+                        <td style={{ color: 'var(--text-muted)' }}>Product Price (Incl. GST):</td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
                           ₹{itemsSubtotal.toLocaleString('en-IN')}
                         </td>
                       </tr>
-                      {selectedOrder.discount > 0 && (
+                      <tr>
+                        <td colSpan={4}></td>
+                        <td style={{ color: 'var(--text-muted)' }}>Taxable Value:</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                          ₹{taxableValue.toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      {discount > 0 && (
                         <tr>
                           <td colSpan={4}></td>
                           <td style={{ color: 'var(--success)', fontWeight: '500' }}>
                             Coupon Discount {selectedOrder.couponCode ? `(${selectedOrder.couponCode})` : ''}:
                           </td>
                           <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--success)' }}>
-                            -₹{selectedOrder.discount.toLocaleString('en-IN')}
+                            -₹{discount.toLocaleString('en-IN')}
                           </td>
                         </tr>
                       )}
@@ -534,20 +561,53 @@ const Orders = ({ token }) => {
                           </td>
                         </tr>
                       )}
-                    <tr>
-                      <td colSpan={4}></td>
-                      <td style={{ color: 'var(--text-muted)' }}>Shipping Cost:</td>
-                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                        ₹{(selectedOrder.shippingCost || 0).toLocaleString('en-IN')}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan={4}></td>
-                      <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Grand Total:</td>
-                      <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--primary)', fontSize: '15px' }}>
-                        ₹{selectedOrder.totalAmount.toLocaleString('en-IN')}
-                      </td>
-                    </tr>
+                      <tr>
+                        <td colSpan={4}></td>
+                        <td style={{ color: 'var(--text-muted)' }}>Shipping Cost:</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                          ₹{shippingCost.toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      <tr style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                        <td colSpan={4}></td>
+                        <td style={{ fontWeight: '500', color: 'var(--text-muted)' }}>Subtotal (before GST):</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                          ₹{subtotalForGst.toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      {isUP ? (
+                        <>
+                          <tr>
+                            <td colSpan={4}></td>
+                            <td style={{ color: 'var(--text-muted)' }}>CGST @1.5%:</td>
+                            <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                              ₹{(gstAmount / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td colSpan={4}></td>
+                            <td style={{ color: 'var(--text-muted)' }}>SGST @1.5%:</td>
+                            <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                              ₹{(gstAmount - gstAmount / 2).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        </>
+                      ) : (
+                        <tr>
+                          <td colSpan={4}></td>
+                          <td style={{ color: 'var(--text-muted)' }}>IGST @3%:</td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                            ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      )}
+                      <tr style={{ borderTop: '2px solid var(--border-color)' }}>
+                        <td colSpan={4}></td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Grand Total:</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--primary)', fontSize: '15px' }}>
+                          ₹{selectedOrder.totalAmount.toLocaleString('en-IN')}
+                        </td>
+                      </tr>
                   </tbody>
                 </table>
               </div>

@@ -7,7 +7,7 @@ import Coupon from '../models/Coupon.js';
 import { incrementCouponUsage } from './couponController.js';
 import { sendEmail } from '../utils/email.js';
 import { getInvoiceEmailTemplate, getStatusUpdateEmailTemplate, getOrderPlacedEmailTemplate } from '../utils/emailTemplates.js';
-import { createShiprocketOrder, generateAWB, trackShipmentByAwb, trackShipmentByShipmentId } from '../utils/shiprocket.js';
+import { createDelhiveryOrder, trackDelhiveryShipment, cancelDelhiveryShipment } from '../utils/delhivery.js';
 import { deductInventory, restoreInventory } from '../utils/inventoryHelper.js';
 
 // Initialize Checkout / Create Pending Order from Cart
@@ -22,6 +22,8 @@ export const checkoutOrder = async (req, res, next) => {
 
     // Verify stock availability and compute totals
     let totalAmount = 0;
+    let taxableValue = 0;
+    let itemsSubtotal = 0;
     const orderItems = [];
 
     for (const item of cart.items) {
@@ -68,8 +70,13 @@ export const checkoutOrder = async (req, res, next) => {
         return res.status(400).json({ success: false, message: `Insufficient stock for ${prod.name} (${item.variant || 'default'})` });
       }
 
-      const activePrice = item.variantDetails?.price || (prod.salePrice > 0 ? prod.salePrice : prod.price);
-      totalAmount += activePrice * item.quantity;
+      const activePrice = (item.variantDetails?.salePrice > 0 ? item.variantDetails.salePrice : item.variantDetails?.price) || (prod.salePrice > 0 ? prod.salePrice : prod.price);
+      
+      // Calculate taxable price by extracting 3% GST (retaining 2 decimal points)
+      const itemGst = Number((activePrice * 0.03).toFixed(2));
+      const itemTaxablePrice = Number((activePrice - itemGst).toFixed(2));
+      taxableValue += itemTaxablePrice * item.quantity;
+      itemsSubtotal += activePrice * item.quantity;
 
       const orderItem = {
         product: prod._id,
@@ -104,41 +111,45 @@ export const checkoutOrder = async (req, res, next) => {
       orderItems.push(orderItem);
     }
 
-    // Apply coupon discount if provided
+    // Apply coupon discount if provided on the taxable value
     let discount = 0;
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true });
-      if (!coupon || !coupon.isValid(totalAmount, req.user._id)) {
+      if (!coupon || !coupon.isValid(taxableValue, req.user._id)) {
         return res.status(400).json({ success: false, message: 'Coupon is invalid, expired, or has already been used' });
       }
       if (coupon.discountType === 'percentage') {
-        discount = (coupon.discountValue / 100) * totalAmount;
+        discount = Number(((coupon.discountValue / 100) * taxableValue).toFixed(2));
       } else {
         discount = coupon.discountValue;
       }
-      discount = Math.min(discount, totalAmount);
-      totalAmount = Math.max(0, totalAmount - discount);
+      discount = Math.min(discount, taxableValue);
     }
 
-    // Apply online discount or COD charge
+    // Apply online discount or COD charge on taxable values
     let onlineDiscount = 0;
     let codCharge = 0;
+    const amountBeforeShipping = Math.max(0, taxableValue - discount);
+    
     if (paymentMethod === 'COD') {
       codCharge = 100;
-      totalAmount += codCharge;
     } else {
-      onlineDiscount = Math.round(totalAmount * 0.05);
-      totalAmount = Math.max(0, totalAmount - onlineDiscount);
+      onlineDiscount = Number((amountBeforeShipping * 0.05).toFixed(2));
     }
 
     // Configure shipping cost
+    const amountAfterPaymentAdjustments = amountBeforeShipping + codCharge - onlineDiscount;
     let shippingCost = 0;
     if (shippingMethod === 'Express Delivery') {
       shippingCost = 150;
-    } else if (totalAmount <= 399) {
+    } else if (amountAfterPaymentAdjustments <= 399) {
       shippingCost = 50; // Flat fee for low totals (below 399)
     }
-    totalAmount += shippingCost;
+
+    // Calculate subtotal, GST (original inclusive GST removed), and final total amount
+    const subtotalForGst = Number((amountAfterPaymentAdjustments + shippingCost).toFixed(2));
+    const gstAmount = Number((itemsSubtotal - taxableValue).toFixed(2));
+    totalAmount = Number((subtotalForGst + gstAmount).toFixed(2));
 
     // Create Order in pending payment state
     const order = await Order.create({
@@ -151,6 +162,8 @@ export const checkoutOrder = async (req, res, next) => {
       paymentStatus: 'pending',
       orderStatus: 'pending',
       totalAmount,
+      taxableValue,
+      gstAmount,
       couponCode: couponCode ? couponCode.toUpperCase() : '',
       discount,
       codCharge,
@@ -185,22 +198,22 @@ export const checkoutOrder = async (req, res, next) => {
       await incrementCouponUsage(couponCode, req.user._id);
     }
 
-    // Auto-register COD orders in Shiprocket immediately
+    // Auto-register COD orders in Delhivery immediately
     if (paymentMethod === 'COD') {
       try {
         const populatedOrder = await Order.findById(order._id)
           .populate('user', 'name email mobile')
           .populate('items.product', 'sku');
-        const srDetails = await createShiprocketOrder(populatedOrder, req.user);
-        order.shiprocketOrderId = srDetails.shiprocketOrderId;
-        order.shiprocketShipmentId = srDetails.shipmentId;
+        const delhiveryDetails = await createDelhiveryOrder(populatedOrder, req.user);
+        order.tracking.awb = delhiveryDetails.waybill;
+        order.tracking.carrier = 'Delhivery';
         order.tracking.statusHistory.push({
           status: 'pending',
-          message: `Order registered in Shiprocket. Shipment ID: ${srDetails.shipmentId}`
+          message: `Order registered in Delhivery. Waybill (AWB): ${delhiveryDetails.waybill}`
         });
         await order.save();
-      } catch (srErr) {
-        console.error('Auto Shiprocket creation failed for COD order:', srErr);
+      } catch (delhiveryErr) {
+        console.error('Auto Delhivery creation failed for COD order:', delhiveryErr);
       }
     }
 
@@ -394,46 +407,29 @@ export const shipOrder = async (req, res, next) => {
     let finalCarrier = carrier;
     let awbNumber = '';
 
-    if (carrier === 'Shiprocket') {
+    if (carrier === 'Delhivery') {
       try {
-        let shipmentId = order.shiprocketShipmentId;
-        if (!shipmentId) {
+        let awb = order.tracking.awb;
+        if (!awb) {
           const populatedOrder = await Order.findById(order._id)
             .populate('user', 'name email mobile')
             .populate('items.product', 'sku');
-          const srDetails = await createShiprocketOrder(populatedOrder, order.user);
-          shipmentId = srDetails.shipmentId;
-          order.shiprocketOrderId = srDetails.shiprocketOrderId;
-          order.shiprocketShipmentId = srDetails.shipmentId;
-          await order.save(); // Save immediately in case the AWB step fails next
+          const delhiveryDetails = await createDelhiveryOrder(populatedOrder, order.user);
+          awb = delhiveryDetails.waybill;
+          order.tracking.awb = awb;
+          order.tracking.carrier = 'Delhivery';
+          order.tracking.statusHistory.push({
+            status: 'shipped',
+            message: `Order registered in Delhivery. Waybill (AWB): ${awb}`
+          });
+          await order.save();
         }
-
-        // Check if an AWB is already assigned in Shiprocket to prevent duplicate generation
-        try {
-          const trackInfoRes = await trackShipmentByShipmentId(shipmentId);
-          if (trackInfoRes?.tracking_data?.shipment_track?.length > 0) {
-            const trackInfo = trackInfoRes.tracking_data.shipment_track[0];
-            if (trackInfo.awb_code) {
-              awbNumber = trackInfo.awb_code;
-              finalCarrier = trackInfo.courier_name || 'Shiprocket Cargo';
-              console.log(`AWB already assigned for shipment ${shipmentId}: ${awbNumber}. Reusing it.`);
-            }
-          }
-        } catch (trackErr) {
-          console.log(`No active AWB found for shipment ${shipmentId} yet:`, trackErr.message);
-        }
-
-        // Generate AWB only if not already assigned
-        if (!awbNumber) {
-          const awbResult = await generateAWB(shipmentId);
-          awbNumber = awbResult.awb;
-          finalCarrier = awbResult.courier;
-        }
-      } catch (shiprocketError) {
-        console.error('Shiprocket API error:', shiprocketError);
+        awbNumber = awb;
+      } catch (delhiveryError) {
+        console.error('Delhivery API error:', delhiveryError);
         return res.status(400).json({
           success: false,
-          message: `Shiprocket Error: ${shiprocketError.message || shiprocketError}`
+          message: `Delhivery Error: ${delhiveryError.message || delhiveryError}`
         });
       }
     } else {
@@ -548,109 +544,73 @@ const handleStatusChangeEvents = async (order, oldStatus, newStatus) => {
   }
 };
 
-// Helper to sync tracking details from Shiprocket
+// Helper to sync tracking details from Delhivery
 export const syncOrderTracking = async (order) => {
-  if (!order.shiprocketShipmentId && !order.tracking.awb) {
+  if (!order.tracking.awb) {
+    return order;
+  }
+
+  // Only sync if carrier is Delhivery
+  if (order.tracking.carrier && !order.tracking.carrier.toLowerCase().includes('delhivery')) {
     return order;
   }
 
   try {
-    let trackInfo = null;
-    let activities = [];
-    let awbCode = order.tracking.awb;
-    let courierName = order.tracking.carrier;
-    let currentStatus = '';
+    const response = await trackDelhiveryShipment(order.tracking.awb);
+    if (response && response.ShipmentData && response.ShipmentData.length > 0) {
+      const shipData = response.ShipmentData[0].Shipment;
+      if (shipData) {
+        const latestStatus = shipData.Status?.Status?.toLowerCase() || '';
+        const scans = shipData.Scans || [];
 
-    if (awbCode) {
-      // Fetch by AWB
-      const response = await trackShipmentByAwb(awbCode);
-      if (response?.tracking_data?.shipment_track?.length > 0) {
-        trackInfo = response.tracking_data.shipment_track[0];
-        currentStatus = trackInfo.current_status;
-        if (trackInfo.courier_name) {
-          courierName = trackInfo.courier_name;
+        // Update status history from scans
+        if (scans.length > 0) {
+          order.tracking.statusHistory = scans.map(s => {
+            const scanDetail = s.ScanDetail;
+            return {
+              status: scanDetail.Scan?.toLowerCase() || 'pending',
+              message: `${scanDetail.Instructions || scanDetail.Scan}${scanDetail.ScannedLocation ? ' - ' + scanDetail.ScannedLocation : ''}`,
+              timestamp: scanDetail.ScanDateTime ? new Date(scanDetail.ScanDateTime) : new Date()
+            };
+          });
         }
-        if (Array.isArray(trackInfo.shipment_track_activities)) {
-          activities = trackInfo.shipment_track_activities.map(act => ({
-            status: act['sr-status-label']?.toLowerCase() || act.status?.toLowerCase() || 'pending',
-            message: `${act.activity}${act.location ? ' - ' + act.location : ''}`,
-            timestamp: new Date(act.date)
-          }));
-        }
-      }
-    } else if (order.shiprocketShipmentId) {
-      // Fetch by Shipment ID
-      const response = await trackShipmentByShipmentId(order.shiprocketShipmentId);
-      if (response?.tracking_data?.shipment_track?.length > 0) {
-        trackInfo = response.tracking_data.shipment_track[0];
-        awbCode = trackInfo.awb_code || awbCode;
-        currentStatus = trackInfo.current_status || trackInfo.shipment_status_label || currentStatus;
-        if (trackInfo.courier_name) {
-          courierName = trackInfo.courier_name;
-        }
-        if (Array.isArray(trackInfo.scans)) {
-          activities = trackInfo.scans.map(scan => ({
-            status: scan.activity?.toLowerCase() || 'pending',
-            message: `${scan.activity}${scan.location ? ' - ' + scan.location : ''}`,
-            timestamp: new Date(scan.date)
-          }));
-        }
-      }
-    }
 
-    if (trackInfo) {
-      // Save AWB and Courier if found
-      if (awbCode && order.tracking.awb !== awbCode) {
-        order.tracking.awb = awbCode;
-      }
-      if (courierName && order.tracking.carrier !== courierName) {
-        order.tracking.carrier = courierName;
-      }
+        // Map status to internal orderStatus
+        let calculatedStatus = order.orderStatus;
+        let calculatedPaymentStatus = order.paymentStatus;
+        let stockRestoreRequired = false;
 
-      // Update status history
-      if (activities.length > 0) {
-        // Sort ascending by timestamp
-        activities.sort((a, b) => a.timestamp - b.timestamp);
-        order.tracking.statusHistory = activities;
-      }
-
-      // Map status to internal orderStatus
-      const latestSrStatus = currentStatus?.toLowerCase();
-      let calculatedStatus = order.orderStatus;
-      let calculatedPaymentStatus = order.paymentStatus;
-      let stockRestoreRequired = false;
-
-      if (latestSrStatus) {
-        if (latestSrStatus.includes('delivered')) {
+        if (latestStatus.includes('delivered')) {
           calculatedStatus = 'delivered';
           calculatedPaymentStatus = 'paid';
-        } else if (latestSrStatus.includes('cancel') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
+        } else if (latestStatus.includes('cancel') || latestStatus.includes('return') || latestStatus.includes('rto')) {
           calculatedStatus = 'cancelled';
-          if (order.stockDeducted) {
+          if (order.stockDeductuated) {
             stockRestoreRequired = true;
           }
-        } else if (latestSrStatus.includes('shipped') || latestSrStatus.includes('transit') || latestSrStatus.includes('out for delivery') || latestSrStatus.includes('picked up') || latestSrStatus.includes('awb assigned')) {
+        } else if (latestStatus.includes('transit') || latestStatus.includes('dispatched') || latestStatus.includes('out for delivery') || latestStatus.includes('manifest') || latestStatus.includes('pending')) {
           calculatedStatus = 'shipped';
         }
-      }
 
-      const oldStatus = order.orderStatus;
-      order.orderStatus = calculatedStatus;
-      order.paymentStatus = calculatedPaymentStatus;
-      if (stockRestoreRequired) {
-        try {
-          await restoreInventory(order.items, order._id);
-          order.stockDeducted = false;
-        } catch (invErr) {
-          console.error('Inventory restore failed during dynamic track sync:', invErr);
+        const oldStatus = order.orderStatus;
+        order.orderStatus = calculatedStatus;
+        order.paymentStatus = calculatedPaymentStatus;
+        
+        if (stockRestoreRequired) {
+          try {
+            await restoreInventory(order.items, order._id);
+            order.stockDeducted = false;
+          } catch (invErr) {
+            console.error('Inventory restore failed during Delhivery track sync:', invErr);
+          }
         }
-      }
 
-      await order.save();
+        await order.save();
 
-      // Trigger notifications and email
-      if (oldStatus !== calculatedStatus) {
-        await handleStatusChangeEvents(order, oldStatus, calculatedStatus);
+        // Trigger notifications and email
+        if (oldStatus !== calculatedStatus) {
+          await handleStatusChangeEvents(order, oldStatus, calculatedStatus);
+        }
       }
     }
   } catch (err) {
@@ -667,8 +627,8 @@ export const trackOrder = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // Sync tracking dynamically if it is a Shiprocket shipment or order
-    if (order.shiprocketShipmentId || (order.tracking && order.tracking.carrier && order.tracking.carrier.toLowerCase().includes('shiprocket'))) {
+    // Sync tracking dynamically if it has an AWB and carrier is Delhivery
+    if (order.tracking && order.tracking.awb && order.tracking.carrier && order.tracking.carrier.toLowerCase().includes('delhivery')) {
       order = await syncOrderTracking(order);
     }
 
@@ -678,137 +638,89 @@ export const trackOrder = async (req, res, next) => {
   }
 };
 
-// Handle Shiprocket webhook tracking updates
-export const shiprocketWebhook = async (req, res, next) => {
+// Handle Delhivery webhook tracking updates
+export const delhiveryWebhook = async (req, res, next) => {
   try {
     const payload = req.body;
-    console.log('Received Shiprocket Webhook:', payload);
+    console.log('Received Delhivery Webhook:', payload);
 
-    // Optional validation with a security token (x-api-key or custom header)
-    const webhookToken = process.env.SHIPROCKET_WEBHOOK_TOKEN;
+    // Optional validation with a token
+    const webhookToken = process.env.DELHIVERY_WEBHOOK_TOKEN;
     if (webhookToken) {
       const receivedToken = req.headers['x-api-key'] || req.headers['authorization'];
-      if (!receivedToken || (receivedToken !== webhookToken && receivedToken !== `Bearer ${webhookToken}`)) {
-        console.warn('Unauthorized Shiprocket Webhook attempt.');
+      if (receivedToken && receivedToken !== webhookToken && receivedToken !== `Bearer ${webhookToken}`) {
+        console.warn('Unauthorized Delhivery Webhook attempt.');
         return res.status(401).json({ success: false, message: 'Unauthorized webhook request' });
       }
     }
 
-    const { awb, shipment_id, order_id, status, current_status, courier_name, tracking_data } = payload;
+    // Wrap in array if it's a single object
+    const updates = Array.isArray(payload) ? payload : [payload];
 
-    // Find order
-    let order = null;
-    if (shipment_id) {
-      order = await Order.findOne({ shiprocketShipmentId: shipment_id.toString() });
-    }
-    if (!order && order_id) {
-      // 1. Try to find by Shiprocket's order_id in our shiprocketOrderId field
-      order = await Order.findOne({ shiprocketOrderId: order_id.toString() });
+    for (const update of updates) {
+      const { awb, status, location, remarks } = update;
+      if (!awb) continue;
 
-      // 2. If not found, and order_id is a valid MongoDB ObjectId, search by our database order id
+      const order = await Order.findOne({ 'tracking.awb': awb.toString() }).populate('user', 'name email');
       if (!order) {
-        const mongoose = (await import('mongoose')).default;
-        if (mongoose.Types.ObjectId.isValid(order_id.toString())) {
-          order = await Order.findById(order_id.toString());
-        }
+        console.warn(`Delhivery Webhook: Order not found for AWB: ${awb}`);
+        continue;
       }
-    }
 
-    // 3. Fallback: Search by channel_order_id (sometimes Shiprocket webhooks send this)
-    if (!order && payload.channel_order_id) {
-      const mongoose = (await import('mongoose')).default;
-      if (mongoose.Types.ObjectId.isValid(payload.channel_order_id.toString())) {
-        order = await Order.findById(payload.channel_order_id.toString());
-      }
-    }
-
-    if (!order && awb) {
-      order = await Order.findOne({ 'tracking.awb': awb.toString() });
-    }
-
-    if (!order) {
-      console.warn(`Shiprocket Webhook: Order not found for shipment_id: ${shipment_id}, order_id: ${order_id}, awb: ${awb}, channel_order_id: ${payload.channel_order_id}`);
-      return res.status(200).json({ success: true, message: 'Webhook received but order not found' });
-    }
-
-    // Sync carrier details
-    if (courier_name && order.tracking.carrier !== courier_name) {
-      order.tracking.carrier = courier_name;
-    }
-    if (awb && order.tracking.awb !== awb) {
-      order.tracking.awb = awb;
-    }
-
-    // Update status history
-    if (tracking_data && Array.isArray(tracking_data.activities)) {
-      const sortedActivities = [...tracking_data.activities].sort(
-        (a, b) => new Date(a.date) - new Date(b.date)
-      );
-
-      const statusHistory = sortedActivities.map(act => ({
-        status: act.status?.toLowerCase() || 'pending',
-        message: `${act.activity}${act.location ? ' - ' + act.location : ''}`,
-        timestamp: new Date(act.date)
-      }));
-
-      if (statusHistory.length > 0) {
-        order.tracking.statusHistory = statusHistory;
-      }
-    } else if (current_status || status) {
-      const newStatus = (current_status || status).toLowerCase();
+      const newStatus = status?.toLowerCase() || '';
+      
+      // Update status history
       const lastHistory = order.tracking.statusHistory[order.tracking.statusHistory.length - 1];
       if (!lastHistory || lastHistory.status !== newStatus) {
         order.tracking.statusHistory.push({
-          status: newStatus,
-          message: `Shipment status updated to: ${current_status || status}`,
+          status: newStatus || 'pending',
+          message: `${remarks || status}${location ? ' - ' + location : ''}`,
           timestamp: new Date()
         });
       }
-    }
 
-    // Update internal orderStatus
-    const latestSrStatus = (current_status || status || '').toLowerCase();
-    let calculatedStatus = order.orderStatus;
-    let calculatedPaymentStatus = order.paymentStatus;
-    let stockRestoreRequired = false;
+      // Map status to internal orderStatus
+      let calculatedStatus = order.orderStatus;
+      let calculatedPaymentStatus = order.paymentStatus;
+      let stockRestoreRequired = false;
 
-    if (latestSrStatus) {
-      if (latestSrStatus.includes('delivered')) {
+      if (newStatus.includes('delivered')) {
         calculatedStatus = 'delivered';
         calculatedPaymentStatus = 'paid';
-      } else if (latestSrStatus.includes('cancel') || latestSrStatus.includes('returned') || latestSrStatus.includes('rto')) {
+      } else if (newStatus.includes('cancel') || newStatus.includes('return') || newStatus.includes('rto')) {
         calculatedStatus = 'cancelled';
         if (order.stockDeducted) {
           stockRestoreRequired = true;
         }
-      } else if (latestSrStatus.includes('shipped') || latestSrStatus.includes('transit') || latestSrStatus.includes('out for delivery') || latestSrStatus.includes('picked up') || latestSrStatus.includes('awb assigned')) {
+      } else if (newStatus.includes('transit') || newStatus.includes('dispatched') || newStatus.includes('out for delivery') || newStatus.includes('manifest')) {
         calculatedStatus = 'shipped';
       }
-    }
 
-    const oldStatus = order.orderStatus;
-    order.orderStatus = calculatedStatus;
-    order.paymentStatus = calculatedPaymentStatus;
-    if (stockRestoreRequired) {
-      try {
-        await restoreInventory(order.items, order._id);
-        order.stockDeducted = false;
-      } catch (invErr) {
-        console.error('Inventory restore failed during webhook cancel:', invErr);
+      const oldStatus = order.orderStatus;
+      order.orderStatus = calculatedStatus;
+      order.paymentStatus = calculatedPaymentStatus;
+
+      if (stockRestoreRequired) {
+        try {
+          await restoreInventory(order.items, order._id);
+          order.stockDeducted = false;
+        } catch (invErr) {
+          console.error('Inventory restore failed during Delhivery webhook update:', invErr);
+        }
       }
-    }
 
-    await order.save();
-    console.log(`Order #${order._id} updated via Shiprocket Webhook to: ${order.orderStatus}`);
+      await order.save();
+      console.log(`Order #${order._id} updated via Delhivery Webhook to: ${order.orderStatus}`);
 
-    // Trigger notifications and email
-    if (oldStatus !== calculatedStatus) {
-      await handleStatusChangeEvents(order, oldStatus, calculatedStatus);
+      // Trigger notifications and email
+      if (oldStatus !== calculatedStatus) {
+        await handleStatusChangeEvents(order, oldStatus, calculatedStatus);
+      }
     }
 
     return res.status(200).json({ success: true, message: 'Webhook processed successfully' });
   } catch (error) {
-    console.error('Error handling Shiprocket Webhook:', error);
+    console.error('Error handling Delhivery Webhook:', error);
     return res.status(200).json({ success: false, error: error.message });
   }
 };
@@ -837,6 +749,19 @@ export const cancelOrder = async (req, res, next) => {
     }
 
     order.orderStatus = 'cancelled';
+
+    // Call Delhivery cancel if waybill exists
+    if (order.tracking && order.tracking.awb && order.tracking.carrier === 'Delhivery') {
+      try {
+        await cancelDelhiveryShipment(order.tracking.awb);
+        order.tracking.statusHistory.push({
+          status: 'cancelled',
+          message: 'Delhivery shipment cancelled.'
+        });
+      } catch (delhiveryCancelErr) {
+        console.error('Failed to cancel Delhivery shipment:', delhiveryCancelErr);
+      }
+    }
 
     // Restore stock only if it was previously deducted (handles COD + confirmed online orders)
     // Uses shared helper that correctly handles variants[], sizes[], and root inventory

@@ -7,14 +7,14 @@ import {
   shipOrder,
   trackOrder,
   cancelOrder,
-  shiprocketWebhook
+  delhiveryWebhook
 } from '../controllers/orderController.js';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Public webhook endpoint for Shiprocket tracking updates
-router.post('/webhook/delivery', shiprocketWebhook);
+// Public webhook endpoint for Delhivery tracking updates
+router.post('/webhook/delivery', delhiveryWebhook);
 
 router.use(protect); // All order routes require authenticated sessions
 
