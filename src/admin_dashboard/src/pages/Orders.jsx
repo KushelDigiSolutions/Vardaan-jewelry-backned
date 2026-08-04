@@ -570,7 +570,7 @@ const Orders = ({ token }) => {
                       </tr>
                       <tr style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={4}></td>
-                        <td style={{ fontWeight: '500', color: 'var(--text-muted)' }}>Subtotal (before GST):</td>
+                        <td style={{ fontWeight: '500', color: 'var(--text-muted)' }}>Subtotal (Excl. GST):</td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
                           ₹{subtotalForGst.toLocaleString('en-IN')}
                         </td>

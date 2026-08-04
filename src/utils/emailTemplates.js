@@ -68,7 +68,7 @@ const getBreakdownHtml = (order) => {
       <td style="text-align: right; font-weight: bold; color: #303030;">₹${shippingCost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
     </tr>
     <tr class="total-row" style="border-top: 1px solid #F0ECE3; border-bottom: 1px solid #F0ECE3;">
-      <td colspan="3" style="text-align: right; font-weight: 600; color: #303030;">Subtotal (before GST):</td>
+      <td colspan="3" style="text-align: right; font-weight: 600; color: #303030;">Subtotal (Excl. GST):</td>
       <td style="text-align: right; font-weight: bold; color: #303030;">₹${subtotalForGst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
     </tr>
   `;
