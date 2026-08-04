@@ -38,6 +38,22 @@ export const requestReturn = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Replacements can only be requested after order has been delivered' });
     }
 
+    // Verify order is online payment (not COD)
+    if (order.paymentMethod === 'COD') {
+      return res.status(400).json({ success: false, message: 'Replacements are only available for online orders' });
+    }
+
+    // Verify delivery is within 24 hours
+    const deliveredStatus = order.tracking?.statusHistory?.find(
+      (h) => h.status && h.status.toLowerCase() === 'delivered'
+    );
+    const deliveryTime = deliveredStatus ? new Date(deliveredStatus.timestamp) : new Date(order.updatedAt);
+    const hoursSinceDelivery = (new Date() - deliveryTime) / (1000 * 60 * 60);
+
+    if (hoursSinceDelivery > 24) {
+      return res.status(400).json({ success: false, message: 'Replacement requests can only be made within 24 hours of delivery' });
+    }
+
     // Verify returning items belong to order and quantities are valid
     const returnItems = [];
     for (const item of items) {
@@ -238,6 +254,22 @@ export const updateReturn = async (req, res, next) => {
     const order = await Order.findById(returnRequest.order);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Verify order is online payment (not COD)
+    if (order.paymentMethod === 'COD') {
+      return res.status(400).json({ success: false, message: 'Replacements are only available for online orders' });
+    }
+
+    // Verify delivery is within 24 hours
+    const deliveredStatus = order.tracking?.statusHistory?.find(
+      (h) => h.status && h.status.toLowerCase() === 'delivered'
+    );
+    const deliveryTime = deliveredStatus ? new Date(deliveredStatus.timestamp) : new Date(order.updatedAt);
+    const hoursSinceDelivery = (new Date() - deliveryTime) / (1000 * 60 * 60);
+
+    if (hoursSinceDelivery > 24) {
+      return res.status(400).json({ success: false, message: 'Replacement requests can only be modified/updated within 24 hours of delivery' });
     }
 
     // Verify returning items belong to order and quantities are valid

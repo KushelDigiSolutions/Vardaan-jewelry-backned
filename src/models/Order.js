@@ -51,6 +51,8 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   },
   totalAmount: { type: Number, required: true },
+  taxableValue: { type: Number, default: 0 },
+  gstAmount: { type: Number, default: 0 },
   couponCode: { type: String, default: '' },
   discount: { type: Number, default: 0 },
   codCharge: { type: Number, default: 0 },
