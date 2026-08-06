@@ -3,6 +3,114 @@ import { ShoppingBag, Eye, X, Truck, Landmark, RefreshCw, ChevronLeft, ChevronRi
 import { useToast } from '../context/ToastContext.jsx';
 import { useLoader } from '../context/LoaderContext.jsx';
 
+/** Standard color palette for hex matching */
+const COLOR_PALETTE = [
+  { name: "White", r: 255, g: 255, b: 255 },
+  { name: "Black", r: 0, g: 0, b: 0 },
+  { name: "Red", r: 255, g: 0, b: 0 },
+  { name: "Crimson", r: 220, g: 20, b: 60 },
+  { name: "Dark Red", r: 139, g: 0, b: 0 },
+  { name: "Green", r: 0, g: 128, b: 0 },
+  { name: "Emerald Green", r: 7, g: 81, b: 46 },
+  { name: "Lime Green", r: 50, g: 205, b: 50 },
+  { name: "Blue", r: 0, g: 0, b: 255 },
+  { name: "Navy Blue", r: 0, g: 0, b: 128 },
+  { name: "Sky Blue", r: 135, g: 206, b: 235 },
+  { name: "Royal Blue", r: 65, g: 105, b: 225 },
+  { name: "Yellow", r: 255, g: 255, b: 0 },
+  { name: "Yellow Gold", r: 255, g: 215, b: 0 },
+  { name: "Gold", r: 212, g: 175, b: 55 },
+  { name: "Rose Gold", r: 232, g: 160, b: 144 },
+  { name: "Orange", r: 255, g: 165, b: 0 },
+  { name: "Pink", r: 255, g: 192, b: 203 },
+  { name: "Hot Pink", r: 255, g: 105, b: 180 },
+  { name: "Purple", r: 128, g: 0, b: 128 },
+  { name: "Violet", r: 238, g: 130, b: 238 },
+  { name: "Lavender", r: 230, g: 230, b: 250 },
+  { name: "Brown", r: 165, g: 42, b: 42 },
+  { name: "Maroon", r: 128, g: 0, b: 0 },
+  { name: "Silver", r: 192, g: 192, b: 192 },
+  { name: "White Gold", r: 232, g: 232, b: 232 },
+  { name: "Platinum", r: 229, g: 228, b: 226 },
+  { name: "Grey", r: 128, g: 128, b: 128 },
+  { name: "Dark Grey", r: 169, g: 169, b: 169 },
+  { name: "Light Grey", r: 211, g: 211, b: 211 },
+  { name: "Beige", r: 245, g: 245, b: 220 },
+  { name: "Teal", r: 0, g: 128, b: 128 },
+  { name: "Cyan", r: 0, g: 255, b: 255 },
+  { name: "Turquoise", r: 64, g: 224, b: 208 },
+  { name: "Bronze", r: 205, g: 127, b: 50 },
+  { name: "Copper", r: 184, g: 115, b: 51 },
+];
+
+function getColorName(colorInput) {
+  if (!colorInput) return "";
+
+  let colorStr = "";
+  if (typeof colorInput === "object") {
+    if (colorInput.colorName && typeof colorInput.colorName === "string" && !colorInput.colorName.startsWith("#")) {
+      return colorInput.colorName;
+    }
+    if (colorInput.name && typeof colorInput.name === "string" && !colorInput.name.startsWith("#")) {
+      return colorInput.name;
+    }
+    colorStr = colorInput.color || "";
+  } else if (typeof colorInput === "string") {
+    colorStr = colorInput;
+  }
+
+  colorStr = colorStr.trim();
+  if (!colorStr) return "";
+
+  if (!colorStr.startsWith("#") && !colorStr.toLowerCase().startsWith("rgb")) {
+    return colorStr
+      .split(/\s+/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  }
+
+  let hex = colorStr.replace("#", "");
+  if (hex.length === 3) {
+    hex = hex.split("").map((c) => c + c).join("");
+  }
+  if (hex.length !== 6) return colorStr;
+
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return colorStr;
+
+  let closest = null;
+  let minDistance = Infinity;
+
+  for (const item of COLOR_PALETTE) {
+    const rMean = (r + item.r) / 2;
+    const dR = r - item.r;
+    const dG = g - item.g;
+    const dB = b - item.b;
+    const distance = Math.sqrt(
+      (2 + rMean / 256) * dR * dR +
+        4 * dG * dG +
+        (2 + (255 - rMean) / 256) * dB * dB
+    );
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = item.name;
+    }
+  }
+
+  return closest || colorStr;
+}
+
+function formatVariantText(str) {
+  if (!str) return "";
+  return str.replace(/Color Option:\s*(#[a-fA-F0-9]{3,6})/gi, (match, hex) => {
+    return `Color Option: ${getColorName(hex)}`;
+  });
+}
+
 const Orders = ({ token }) => {
   const toast = useToast();
   const { showLoader, hideLoader } = useLoader();
@@ -496,15 +604,30 @@ const Orders = ({ token }) => {
                           </td>
                           <td>
                             <div style={{ fontWeight: '500' }}>{item.name}</div>
-                            {(item.variantDetails?.size || item.variant) && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                <span style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>
-                                  Size: {item.variantDetails?.size || item.variant}
-                                </span>
-                                {item.variantDetails?.karat && ` | ${item.variantDetails.karat}`}
-                                {item.variantDetails?.metalColor && ` | ${item.variantDetails.metalColor}`}
-                              </div>
-                            )}
+                            {(() => {
+                              const v = item.variantDetails;
+                              const colorRaw = v?.colorOption || v?.metalColor || v?.color || item.colorOption || item.color;
+                              const colorName = colorRaw ? getColorName(colorRaw) : "";
+                              const rawVariantStr = item.variant ? formatVariantText(item.variant) : "";
+
+                              return (
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                                  <span style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px' }}>
+                                    Size: {v?.size || "Standard"}
+                                  </span>
+                                  {v?.karat && <span>| Karat: {v.karat}</span>}
+                                  {v?.metalColor && <span>| Metal: {v.metalColor}</span>}
+                                  {colorName && (
+                                    <span style={{ color: 'black', fontWeight: 'bold' }}>
+                                      | Color: {colorName}
+                                    </span>
+                                  )}
+                                  {!colorName && rawVariantStr && rawVariantStr !== "Standard" && (
+                                    <span>| {rawVariantStr}</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td style={{ fontFamily: 'monospace' }}>{item.product?.sku || 'N/A'}</td>
                           <td>{item.quantity}</td>
