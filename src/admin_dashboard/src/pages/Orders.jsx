@@ -131,7 +131,7 @@ const Orders = ({ token }) => {
   // Selected Order Drawer
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [shippingCarrier, setShippingCarrier] = useState('Shiprocket');
+  const [shippingCarrier, setShippingCarrier] = useState('Delhivery');
   const [actionLoading, setActionLoading] = useState(false);
   const [tempStatus, setTempStatus] = useState('');
   const [tempPaymentStatus, setTempPaymentStatus] = useState('');
@@ -815,9 +815,7 @@ const Orders = ({ token }) => {
                           value={shippingCarrier}
                           onChange={(e) => setShippingCarrier(e.target.value)}
                         >
-                          {/* <option value="Delhivery">Delhivery Express</option> */}
-                          <option value="Shiprocket">Shiprocket</option>
-                          {/* <option value="Blue Dart">Blue Dart Premium</option> */}
+                          <option value="Delhivery">Delhivery (1Delivery) Express</option>
                         </select>
                       </div>
                       <button

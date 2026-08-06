@@ -15,6 +15,7 @@ const router = express.Router();
 
 // Public webhook endpoint for Delhivery tracking updates
 router.post('/webhook/delivery', delhiveryWebhook);
+router.post('/webhook/delhivery', delhiveryWebhook);
 
 router.use(protect); // All order routes require authenticated sessions
 
