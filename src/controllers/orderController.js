@@ -485,7 +485,7 @@ const handleStatusChangeEvents = async (order, oldStatus, newStatus) => {
     }
   }
 
-  const carrier = order.tracking?.carrier || 'Shiprocket';
+  const carrier = order.tracking?.carrier || 'Delhivery';
   const awb = order.tracking?.awb || 'N/A';
 
   if (newStatus === 'shipped') {
@@ -642,7 +642,7 @@ export const trackOrder = async (req, res, next) => {
 export const delhiveryWebhook = async (req, res, next) => {
   try {
     const payload = req.body;
-    console.log('Received Delhivery Webhook:', payload);
+    console.log('Received Delhivery Webhook:', JSON.stringify(payload, null, 2));
 
     // Optional validation with a token
     const webhookToken = process.env.DELHIVERY_WEBHOOK_TOKEN;
@@ -654,12 +654,34 @@ export const delhiveryWebhook = async (req, res, next) => {
       }
     }
 
-    // Wrap in array if it's a single object
-    const updates = Array.isArray(payload) ? payload : [payload];
+    // Extract list of updates from payload (support arrays, ShipmentData, or single objects)
+    let rawUpdates = [];
+    if (Array.isArray(payload)) {
+      rawUpdates = payload;
+    } else if (payload && Array.isArray(payload.ShipmentData)) {
+      rawUpdates = payload.ShipmentData;
+    } else if (payload && typeof payload === 'object') {
+      rawUpdates = [payload];
+    }
 
-    for (const update of updates) {
-      const { awb, status, location, remarks } = update;
+    for (const item of rawUpdates) {
+      // Robust field extraction across Delhivery API payload versions
+      const awb = item.awb || item.waybill || item.Waybill || item.AWB || 
+                  item.Shipment?.AWB || item.Shipment?.Waybill || 
+                  item.ShipmentData?.[0]?.Shipment?.AWB || item.ShipmentData?.[0]?.Shipment?.Waybill || item.refnum;
+
       if (!awb) continue;
+
+      const rawStatus = item.status || 
+                        (typeof item.Status === 'string' ? item.Status : item.Status?.Status) || 
+                        item.Shipment?.Status?.Status || 
+                        item.Shipment?.Status || '';
+
+      const location = item.location || item.ScannedLocation || item.location_name || 
+                       item.Shipment?.ScannedLocation || item.Shipment?.location || '';
+
+      const remarks = item.remarks || item.Instructions || item.Status?.Instructions || 
+                      item.Shipment?.Status?.Instructions || item.Shipment?.remarks || rawStatus || '';
 
       const order = await Order.findOne({ 'tracking.awb': awb.toString() }).populate('user', 'name email');
       if (!order) {
@@ -667,32 +689,40 @@ export const delhiveryWebhook = async (req, res, next) => {
         continue;
       }
 
-      const newStatus = status?.toLowerCase() || '';
+      const statusLower = String(rawStatus).toLowerCase();
       
-      // Update status history
+      // Update tracking status history timeline
+      const statusMsg = `${remarks}${location ? ' - ' + location : ''}`.trim() || rawStatus || 'Status update received';
       const lastHistory = order.tracking.statusHistory[order.tracking.statusHistory.length - 1];
-      if (!lastHistory || lastHistory.status !== newStatus) {
+      if (!lastHistory || lastHistory.message !== statusMsg || lastHistory.status !== statusLower) {
         order.tracking.statusHistory.push({
-          status: newStatus || 'pending',
-          message: `${remarks || status}${location ? ' - ' + location : ''}`,
+          status: statusLower || 'pending',
+          message: statusMsg,
           timestamp: new Date()
         });
       }
 
-      // Map status to internal orderStatus
+      // Map status to internal orderStatus enum ('pending', 'confirmed', 'shipped', 'delivered', 'cancelled')
       let calculatedStatus = order.orderStatus;
       let calculatedPaymentStatus = order.paymentStatus;
       let stockRestoreRequired = false;
 
-      if (newStatus.includes('delivered')) {
+      if (statusLower.includes('delivered')) {
         calculatedStatus = 'delivered';
-        calculatedPaymentStatus = 'paid';
-      } else if (newStatus.includes('cancel') || newStatus.includes('return') || newStatus.includes('rto')) {
+        calculatedPaymentStatus = 'paid'; // Mark payment paid upon successful delivery
+      } else if (statusLower.includes('cancel') || statusLower.includes('return') || statusLower.includes('rto') || statusLower.includes('dto')) {
         calculatedStatus = 'cancelled';
         if (order.stockDeducted) {
           stockRestoreRequired = true;
         }
-      } else if (newStatus.includes('transit') || newStatus.includes('dispatched') || newStatus.includes('out for delivery') || newStatus.includes('manifest')) {
+      } else if (
+        statusLower.includes('transit') || 
+        statusLower.includes('dispatched') || 
+        statusLower.includes('out for delivery') || 
+        statusLower.includes('manifest') || 
+        statusLower.includes('picked up') ||
+        statusLower.includes('in-transit')
+      ) {
         calculatedStatus = 'shipped';
       }
 
@@ -700,6 +730,7 @@ export const delhiveryWebhook = async (req, res, next) => {
       order.orderStatus = calculatedStatus;
       order.paymentStatus = calculatedPaymentStatus;
 
+      // Restore inventory if shipment was cancelled / RTO after stock was deducted
       if (stockRestoreRequired) {
         try {
           await restoreInventory(order.items, order._id);
@@ -712,13 +743,31 @@ export const delhiveryWebhook = async (req, res, next) => {
       await order.save();
       console.log(`Order #${order._id} updated via Delhivery Webhook to: ${order.orderStatus}`);
 
-      // Trigger notifications and email
+      // Trigger notifications and email if orderStatus changed or if "out for delivery" status milestone hit
       if (oldStatus !== calculatedStatus) {
         await handleStatusChangeEvents(order, oldStatus, calculatedStatus);
+      } else if (statusLower.includes('out for delivery')) {
+        // Send extra notification & email for "Out for Delivery" milestone
+        try {
+          await Notification.create({
+            user: order.user._id,
+            title: 'Order Out for Delivery',
+            message: `Your order #${order._id} is out for delivery today!`
+          });
+
+          await sendEmail({
+            to: order.user.email,
+            subject: `Order #${order._id} is Out for Delivery! - Vardaan Jewel`,
+            text: `Hello ${order.user.name},\n\nGreat news! Your order #${order._id} is out for delivery today and will reach you shortly.\n\nCarrier: ${order.tracking.carrier || 'Delhivery'}\nAWB: ${awb}`,
+            html: getStatusUpdateEmailTemplate(order, 'Out for Delivery Today!', `Your package is out for delivery with our courier agent and will reach your shipping address today.`)
+          });
+        } catch (ofdEmailErr) {
+          console.error('Failed to send Out for Delivery email:', ofdEmailErr);
+        }
       }
     }
 
-    return res.status(200).json({ success: true, message: 'Webhook processed successfully' });
+    return res.status(200).json({ success: true, message: 'Delhivery Webhook processed successfully' });
   } catch (error) {
     console.error('Error handling Delhivery Webhook:', error);
     return res.status(200).json({ success: false, error: error.message });
